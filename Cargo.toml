@@ -1,0 +1,11 @@
+[package]
+name = "stackerror"
+version = "0.1.0"
+edition = "2021"
+description = "An error type and traits for easy error handling and debugging."
+
+[lib]
+doctest = false
+
+[dependencies]
+stackerror-impl = { path = "impl" }

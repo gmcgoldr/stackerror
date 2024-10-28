@@ -1,4 +1,4 @@
-use crate::traits::{ErrorCode, ErrorUri, StackError};
+use crate::traits::{ErrorCode, ErrorStack, ErrorUri};
 
 /// Error handling codes.
 ///
@@ -37,7 +37,7 @@ impl Error {
     }
 }
 
-impl StackError for Error {
+impl ErrorStack for Error {
     fn stack_error(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
         Self {
             error: Box::new(error),

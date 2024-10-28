@@ -1,5 +1,9 @@
 # Stack Error
 
+Pragmatic error handling that's probably good enough.
+
+Largely inspired by anyhow, but aims to be suitable in a library. Not terminal, implements std error. Can be handled, provides error codes. But aims for similar ergonomics. Must manually wrap.
+
 This library provides [`Error`][Error], 
 an error type for convenient error handling in Rust libraries and applications.
 

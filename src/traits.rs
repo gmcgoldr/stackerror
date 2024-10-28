@@ -1,7 +1,7 @@
 //! This module contains the traits that are implemented by [`stackerror::Error`][crate::Error].
 
 /// Trait for stacking errors, allowing creation of error chains.
-pub trait StackError {
+pub trait ErrorStack {
     fn stack_error(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
 }
 
@@ -21,9 +21,9 @@ pub trait ErrorUri {
 }
 
 /// This implementation of the [`StackError`][StackError] trait for [`std::result::Result`][Result] allows you to stack errors on a result.
-impl<T, E> StackError for Result<T, E>
+impl<T, E> ErrorStack for Result<T, E>
 where
-    E: StackError,
+    E: ErrorStack,
 {
     fn stack_error(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
         self.map_err(|e| e.stack_error(error))

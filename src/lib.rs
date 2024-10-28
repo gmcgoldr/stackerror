@@ -5,7 +5,7 @@ mod traits;
 
 pub use error::{Error, ErrorHandling};
 pub use stackerror_impl::derive_stack_error;
-pub use traits::{ErrorCode, ErrorUri, StackError};
+pub use traits::{ErrorCode, ErrorStack, ErrorUri};
 
 /// This module contains unit tests for the stackerror library.
 #[cfg(test)]

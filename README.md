@@ -1,71 +1,115 @@
 # Stack Error
 
-Pragmatic error handling that's probably good enough.
+A pragmatic error handling library that provides helpful strings for debugging, and structured data for runtime error handling.
 
-Largely inspired by anyhow, but aims to be suitable in a library. Not terminal, implements std error. Can be handled, provides error codes. But aims for similar ergonomics. Must manually wrap.
+## Overview
 
-This library provides [`Error`][Error], 
-an error type for convenient error handling in Rust libraries and applications.
+Stack Error provides an error type that is appropriate for library development while providing ergonomics similar to [anyhow](https://docs.rs/anyhow/latest/anyhow/).
 
-The library also includes the following traits which are implemented by [`Error`][Error]: 
-[`StackError`][StackError], 
-[`ErrorCode`][ErrorCode], 
-[`ErrorUri`][ErrorUri]. 
-And a convenience macro to build your own Error type [`derive_stack_error`][derive_stack_error].
+- Provides error types that implement [`std::error::Error`]. Errors are compatible with the broader Rust ecosystem.
+- Facilitates runtime error handling by providing a structured error data. The caller can match on the error code and inspect an optional resource URI to handle errors programmatically.
+- Provides rich error context by chaining errors, creating a pseudo-stack, and using the [`stack_msg!`] macro to include file and line information in error messages.
+- Supports custom error types using a derive macros. Define your own error types, allowing you to create custom methods such as [`std::convert::From`] implementations.
 
-## Motivation
+## Usage
 
-The premise behind this library is that errors have two purposes:
-
-1. Provide information about what went wrong at debug time
-2. Allow for handling errors at runtime
-
-A typical solution to the first problem is to provide informative error messages, 
-or a backtrace. 
-This library provides the [`StackError`][StackError] trait to make it easy to provide informative error messages.
-
-A typical solution to the second problem is to provide an error code.
-This library provides the [`ErrorCode`][ErrorCode] and [`ErrorUri`][ErrorUri] traits to make it easy to provide information about how the error can be handled.
-
-## StackError trait
-
-The [`StackError`][StackError] trait allows you to stack error messages. 
-Calling `stack_error` on a result will create a new error with the original message and the new message.
+Import the prelude to get started:
 
 ```rust
-let result: Result<i32, Error> = Err(Error::from_error("something went wrong"));
-let stacked_error = result.stack_error("unable to proceed");
-assert_eq!(stacked_error.to_string(), "unable to proceed\nsomething went wrong");
+use stackerror::prelude::*;
 ```
 
-In this case, 
-the developer can understand what parts of the program were involved in the error.
+This will import the [`StackError`] type, the [`ErrorHandling`] enum, the [`stack_msg!`] macro, and the [`ErrorStacks`], [`ErrorWithCode`], and [`ErrorWithUri`] traits.
 
-## ErrorCode and ErrorUri traits
-
-The [`ErrorCode`][ErrorCode] and [`ErrorUri`][ErrorUri] traits 
-allow you to provide the caller with information about how to handle the error.
-
-Typically, runtime failures are caused by IO.
-This library proposes a minimal set of error handling codes that can be used to handle (work around) typical IO errors.
+You can build a new [`StackError`] from anything that is [`std::fmt::Display`]:
 
 ```rust
-let result: Result<i32, Error> = Err(Error::from_error("something went wrong"));
-let error = result.with_code(ErrorHandling::RetryResource).with_uri("https://example.com/busyresource");
-assert_eq!(error.code(), Some(&ErrorHandling::RetryResource));
-assert_eq!(error.uri(), Some("https://example.com/busyresource"));
+use stackerror::prelude::*;
+
+fn process_data() -> Result<(), StackError> {
+    Err(StackError::new("failed to process data"))
+}
 ```
 
-In this case,
-the caller could retry the operation later, 
-or try a different resource.
-
-## derive_stack_error macro
-
-The [`derive_stack_error`][derive_stack_error] macro allows you to create your own error type that behaves like [`Error`][Error].
-The benefit is that you can implement your own methods since you own the type.
+You can include file and line information in error messages using the [`stack_msg!`] macro:
 
 ```rust
+use stackerror::prelude::*;
+
+fn process_data() -> Result<(), StackError> {
+    Err(StackError::new(stack_msg!("failed to process data")))
+}
+```
+
+You can include optional error handling information:
+
+```rust
+use stackerror::prelude::*;
+
+fn process_data() -> Result<(), StackError> {
+    Err(
+        StackError::new(stack_msg!("failed to process data"))
+        .with_err_code(ErrorHandling::RetryResource)
+        .with_err_uri("https://example.com/busy-resource")
+    )
+}
+
+fn main() {
+    let result = process_data();
+    if let Err(err) = result {
+        match err.err_code() {
+            ErrorHandling::RetryResource => {
+                // retry the resource
+            }
+            _ => {
+                // unhandled error
+            }
+        }
+    }
+}
+```
+
+You can chain errors together to provide context in the error message:
+
+```rust
+use stackerror::prelude::*;
+
+pub read_data() -> Result<String, StackError> {
+    Err(StackError::new(stack_msg!("failed to read data")))
+}
+
+pub process_data() -> Result<(), StackError> {
+    // NOTE: stack_err can be called directly on the Result
+    read_data().stack_err(stack_msg!("failed to process data"))
+}
+```
+
+This would result in an error message like:
+
+```
+src/main:8 failed to process data
+src/main:4 failed to read data
+```
+
+You can define your own error type that you can implement custom methods on. This allows you to implement your own methods, such as [`std::convert::From`] implementations for upstream error types frequently used in your library.
+
+```rust
+use stackerror::prelude::*;
+
 #[derive_stack_error]
-pub struct MyError(Error);
+struct AppError(StackError);
 ```
+
+## Rationale
+
+There are two distinct consumers of errors: programmers at debug-time, and code at runtime.
+
+During debugging, programmers need human-readable error messages to explain what went wrong and why. To answer the why, the programmer typically needs to know the state of the program when the error-returning function was called. To serve this user, an error type facilitate providing clear and detailed error message.
+
+At runtime, some errors can be handled programmatically. For example, a networked resource could respond with an HTTP busy status code, in which case the program could wait and retry the request. In order to handle errors programmatically, the program needs access to structured error data that is part of the library's public API. Trying to use error messages to provide clear human-readable information at debug-time, and structured data at runtime leads to poor results for both.
+
+### Stack traces
+
+The [`ErrorStacks`] used with the [`stack_msg!`] macro allow for the construction of pseudo-traces which can be clearer  than a full stack trace. However, stack traces can still be useful to get a more complete picture of the state of the program when an error occurred.
+
+It is currently not easy to get stack traces by relying on the [`std::error::Error`] trait. There are some proposals and nightly features to enable this. If that work makes its way into Rust stable, Stack Error could be updated to provide stack traces.

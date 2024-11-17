@@ -20,34 +20,34 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
         #input
 
         impl #name {
-            fn from_error(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-                Self(#first_field_type::from_error(error))
+            fn new(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(#first_field_type::new(error))
             }
         }
 
-        impl ErrorStack for #name {
-            fn stack_error(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-                Self(self.0.stack_error(error))
+        impl ErrorStacks for #name {
+            fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(self.0.stack_err(error))
             }
         }
 
-        impl ErrorCode<ErrorHandling> for #name {
-            fn code(&self) -> Option<&ErrorHandling> {
-                self.0.code()
+        impl ErrorWithCode<ErrorHandling> for #name {
+            fn err_code(&self) -> Option<&ErrorHandling> {
+                self.0.err_code()
             }
 
-            fn with_code(self, code: Option<ErrorHandling>) -> Self {
-                Self(self.0.with_code(code))
+            fn with_err_code(self, code: Option<ErrorHandling>) -> Self {
+                Self(self.0.with_err_code(code))
             }
         }
 
-        impl ErrorUri for #name {
-            fn uri(&self) -> Option<&str> {
-                self.0.uri()
+        impl ErrorWithUri for #name {
+            fn err_uri(&self) -> Option<&str> {
+                self.0.err_uri()
             }
 
-            fn with_uri(self, uri: Option<String>) -> Self {
-                Self(self.0.with_uri(uri))
+            fn with_err_uri(self, uri: Option<String>) -> Self {
+                Self(self.0.with_err_uri(uri))
             }
         }
 

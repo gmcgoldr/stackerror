@@ -12,14 +12,14 @@ use crate::traits::{
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ErrorCode {
     /// An input to the function is invalid.
-    ValidateInputs,
+    InvalidInput,
     /// A resource required by the function is invalid.
-    ValidateResource,
+    InvalidResource,
     /// A resource required by the function isn't currently available, but it
     /// could be in the future.
-    RetryResource,
+    ResourceBusy,
     /// A resource required by the function isn't available.
-    BypassResource,
+    ResourceUnavailable,
 }
 
 /// A simple error type that implements the [`ErrorStacks`] [`ErrorWithCode`]

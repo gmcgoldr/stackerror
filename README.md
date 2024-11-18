@@ -19,7 +19,7 @@ Import the prelude to get started:
 use stackerror::prelude::*;
 ```
 
-This will import the [`StackError`] type, the [`ErrorCode`] enum, the [`stack_msg!`] macro, and the [`ErrorStacks`], [`ErrorWithCode`], and [`ErrorWithUri`] traits.
+This will import the [`StackError`] type, the [`ErrorCode`] enum, the [`stack_msg!`] macro, and the various types used to build and stack errors.
 
 You can build a new [`StackError`] from anything that is [`std::fmt::Display`]:
 
@@ -49,7 +49,7 @@ use stackerror::prelude::*;
 fn process_data() -> Result<(), StackError> {
     Err(
         StackError::new(stack_msg!("failed to process data"))
-        .with_err_code(ErrorCode::RetryResource)
+        .with_err_code(ErrorCode::ResourceBusy)
         .with_err_uri("https://example.com/busy-resource")
     )
 }
@@ -58,7 +58,7 @@ fn main() {
     let result = process_data();
     if let Err(err) = result {
         match err.err_code() {
-            ErrorCode::RetryResource => {
+            ErrorCode::ResourceBusy => {
                 // retry the resource
             }
             _ => {
@@ -100,16 +100,29 @@ use stackerror::prelude::*;
 struct AppError(StackError);
 ```
 
+You can use your own error codes by defining an `ErrorCode` type in the scope where `derive_stack_error` is used:
+
+```rust
+use stackerror::prelude::*;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ErrorCode {
+    SomethingWentWrong,
+    SomethingElseWentWrong,
+}
+
+#[derive_stack_error]
+struct AppError(StackError);
+```
+
 ## Rationale
 
-There are two distinct consumers of errors: programmers at debug-time, and code at runtime.
+There are two distinct situation in which errors are used: during debugging and at runtime. During debugging, an error type should provide actionable and human-readable error message helping the programmer understand _what_ went wrong and _how_ it happened. Whereas at runtime, an error type should provide structured information that allows calling code to take appropriate actions to handle the error if possible.
 
-During debugging, programmers need human-readable error messages to explain what went wrong and why. To answer the why, the programmer typically needs to know the state of the program when the error-returning function was called. To serve this user, an error type facilitate providing clear and detailed error message.
-
-At runtime, some errors can be handled programmatically. For example, a networked resource could respond with an HTTP busy status code, in which case the program could wait and retry the request. In order to handle errors programmatically, the program needs access to structured error data that is part of the library's public API. Trying to use error messages to provide clear human-readable information at debug-time, and structured data at runtime leads to poor results for both.
+Stack Error is an experimental error type designed to address those needs separately. First by offering an ergonomic interface for writing good error messages explaining _what_ went wrong, second by building a pseudo-trace that is focused on providing the relevant context to understand _how_ an error ocurred, and third by offering a generic interface to for a caller to get information about what resource caused and error and how to recover from it.
 
 ### Stack traces
 
 The [`ErrorStacks`] used with the [`stack_msg!`] macro allow for the construction of pseudo-traces which can be clearer  than a full stack trace. However, stack traces can still be useful to get a more complete picture of the state of the program when an error occurred.
 
-It is currently not easy to get stack traces by relying on the [`std::error::Error`] trait. There are some proposals and nightly features to enable this. If that work makes its way into Rust stable, Stack Error could be updated to provide stack traces.
+It is currently not simple to get stack traces by relying on the [`std::error::Error`] trait. There are some proposals and nightly features to enable this. If that work makes its way into Rust stable, Stack Error could be updated to provide stack traces.

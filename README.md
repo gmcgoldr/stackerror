@@ -1,6 +1,6 @@
 # Stack Error
 
-A pragmatic error handling library that provides helpful strings for debugging, and structured data for runtime error handling.
+A pragmatic error handling library for Rust that provides helpful strings for debugging, and structured data for runtime error handling.
 
 ## Overview
 
@@ -19,7 +19,7 @@ Import the prelude to get started:
 use stackerror::prelude::*;
 ```
 
-This will import the [`StackError`] type, the [`ErrorHandling`] enum, the [`stack_msg!`] macro, and the [`ErrorStacks`], [`ErrorWithCode`], and [`ErrorWithUri`] traits.
+This will import the [`StackError`] type, the [`ErrorCode`] enum, the [`stack_msg!`] macro, and the [`ErrorStacks`], [`ErrorWithCode`], and [`ErrorWithUri`] traits.
 
 You can build a new [`StackError`] from anything that is [`std::fmt::Display`]:
 
@@ -49,7 +49,7 @@ use stackerror::prelude::*;
 fn process_data() -> Result<(), StackError> {
     Err(
         StackError::new(stack_msg!("failed to process data"))
-        .with_err_code(ErrorHandling::RetryResource)
+        .with_err_code(ErrorCode::RetryResource)
         .with_err_uri("https://example.com/busy-resource")
     )
 }
@@ -58,7 +58,7 @@ fn main() {
     let result = process_data();
     if let Err(err) = result {
         match err.err_code() {
-            ErrorHandling::RetryResource => {
+            ErrorCode::RetryResource => {
                 // retry the resource
             }
             _ => {

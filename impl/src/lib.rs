@@ -31,12 +31,12 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
             }
         }
 
-        impl ErrorWithCode<ErrorHandling> for #name {
-            fn err_code(&self) -> Option<&ErrorHandling> {
+        impl ErrorWithCode<ErrorCode> for #name {
+            fn err_code(&self) -> Option<&ErrorCode> {
                 self.0.err_code()
             }
 
-            fn with_err_code(self, code: Option<ErrorHandling>) -> Self {
+            fn with_err_code(self, code: Option<ErrorCode>) -> Self {
                 Self(self.0.with_err_code(code))
             }
         }
@@ -48,6 +48,24 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
 
             fn with_err_uri(self, uri: Option<String>) -> Self {
                 Self(self.0.with_err_uri(uri))
+            }
+        }
+
+        impl ErrorStacksWithCode for #name {
+            fn stack_err_code(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(self.0.stack_err_code(error))
+            }
+        }
+
+        impl ErrorStacksWithUri for #name {
+            fn stack_err_uri(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(self.0.stack_err_uri(error))
+            }
+        }
+
+        impl ErrorStacksWithCodeUri for #name {
+            fn stack_err_code_uri(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(self.0.stack_err_code_uri(error))
             }
         }
 

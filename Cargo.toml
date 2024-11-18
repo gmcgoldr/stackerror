@@ -2,10 +2,17 @@
 name = "stackerror"
 version = "0.1.0"
 edition = "2021"
-description = "An error type and traits for easy error handling and debugging."
+description = "A pragmatic error handling library for Rust that provides helpful strings for debugging, and structured data for runtime error handling."
+readme = "README.md"
+repository = "https://github.com/gmcgoldr/stackerror"
+license-file = "LICENSE"
+keywords = ["error", "error-handling"]
 
 [lib]
 doctest = false
 
 [dependencies]
-stackerror-impl = { path = "impl" }
+stackerror-impl = { version = "=0.1.0", path = "impl" }
+
+[workspace]
+members = ["impl"]

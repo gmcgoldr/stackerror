@@ -2,6 +2,10 @@
 name = "stackerror-impl"
 version = "0.1.0"
 edition = "2021"
+description = "Derive macro implementation for the `stackerror` crate."
+readme = "../README.md"
+repository = "https://github.com/gmcgoldr/stackerror"
+license-file = "../LICENSE"
 
 [lib]
 proc-macro = true

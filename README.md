@@ -7,8 +7,8 @@ A pragmatic error handling library for Rust that provides helpful strings for de
 Stack Error provides an error type that is appropriate for library development while providing ergonomics similar to [anyhow](https://docs.rs/anyhow/latest/anyhow/).
 
 - Provides error types that implement [`std::error::Error`]. Errors are compatible with the broader Rust ecosystem.
-- Facilitates runtime error handling by providing a structured error data. The caller can match on the error code and inspect an optional resource URI to handle errors programmatically.
 - Provides rich error context by chaining errors, creating a pseudo-stack, and using the [`stack_msg!`] macro to include file and line information in error messages.
+- Facilitates runtime error handling by providing a structured error data. The caller can match on the error code and inspect an optional resource URI to handle errors programmatically.
 - Supports custom error types using a derive macros. Define your own error types, allowing you to create custom methods such as [`std::convert::From`] implementations.
 
 ## Usage
@@ -91,13 +91,19 @@ src/main:8 failed to process data
 src/main:4 failed to read data
 ```
 
-You can define your own error type that you can implement custom methods on. This allows you to implement your own methods, such as [`std::convert::From`] implementations for upstream error types frequently used in your library.
+You can define your own error type. This allows you to implement your own methods, such as [`std::convert::From`] implementations for upstream error types frequently used in your library.
 
 ```rust
 use stackerror::prelude::*;
 
 #[derive_stack_error]
 struct AppError(StackError);
+
+impl std::convert::From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self {
+        AppError::new(err)
+    }
+}
 ```
 
 You can use your own error codes by defining an `ErrorCode` type in the scope where `derive_stack_error` is used:
@@ -117,7 +123,7 @@ struct AppError(StackError);
 
 ## Rationale
 
-There are two distinct situation in which errors are used: during debugging and at runtime. During debugging, an error type should provide actionable and human-readable error message helping the programmer understand _what_ went wrong and _how_ it happened. Whereas at runtime, an error type should provide structured information that allows calling code to take appropriate actions to handle the error if possible.
+There are two distinct situation in which errors are used: during debugging and at runtime. During debugging, an error should provide an actionable and human-readable message that conveys _what_ went wrong and _how_ it happened. Whereas at runtime, an error should provide structured data that allows the calling code to take appropriate error handling actions.
 
 Stack Error is an experimental error type designed to address those needs separately. First by offering an ergonomic interface for writing good error messages explaining _what_ went wrong, second by building a pseudo-trace that is focused on providing the relevant context to understand _how_ an error ocurred, and third by offering a generic interface to for a caller to get information about what resource caused and error and how to recover from it.
 

@@ -7,7 +7,7 @@ A pragmatic error handling library for Rust that provides helpful strings for de
 Stack Error provides an error type that is appropriate for library development while providing ergonomics similar to [anyhow](https://docs.rs/anyhow/latest/anyhow/).
 
 - Provides error types that implement [`std::error::Error`]. Errors are compatible with the broader Rust ecosystem.
-- Provides rich error context by chaining errors, creating a pseudo-stack, and using the [`stack_msg!`] macro to include file and line information in error messages.
+- Provides rich error context by chaining errors, and using the [`stack_msg!`] macro to include file and line information in error messages.
 - Facilitates runtime error handling by providing a structured error data. The caller can match on the error code and inspect an optional resource URI to handle errors programmatically.
 - Supports custom error types using a derive macros. Define your own error types, allowing you to create custom methods such as [`std::convert::From`] implementations.
 
@@ -19,7 +19,7 @@ Import the prelude to get started:
 use stackerror::prelude::*;
 ```
 
-This will import the [`StackError`] type, the [`ErrorCode`] enum, the [`stack_msg!`] macro, and the various types used to build and stack errors.
+This will import the [`StackError`] type, the [`ErrorCode`] enum, the [`stack_msg!`] macro, and the traits used to build and stack errors.
 
 You can build a new [`StackError`] from anything that is [`std::fmt::Display`]:
 
@@ -123,11 +123,70 @@ struct AppError(StackError);
 
 ## Rationale
 
-There are two distinct situation in which errors are used: during debugging and at runtime. During debugging, an error should provide an actionable and human-readable message that conveys _what_ went wrong and _how_ it happened. Whereas at runtime, an error should provide structured data that allows the calling code to take appropriate error handling actions.
+There are two distinct situation in which errors are used: during debugging and at runtime. During debugging, an error should provide an actionable and human-readable message that conveys _what_ went wrong and _how_ it happened. Whereas at runtime, an error should provide typed data allowing calling code to take appropriate error handling actions.
 
-Stack Error is an experimental error type designed to address those needs separately. First by offering an ergonomic interface for writing good error messages explaining _what_ went wrong, second by building a pseudo-trace that is focused on providing the relevant context to understand _how_ an error ocurred, and third by offering a generic interface to for a caller to get information about what resource caused and error and how to recover from it.
+Stack Error is addresses those needs separately. First by offering an ergonomic interface for writing good error messages explaining _what_ went wrong, second by building a pseudo-trace that is focused on providing the relevant context to understand _how_ an error ocurred, and third by offering a generic interface to for a caller to get information about what resource caused and error and how to recover from it.
 
-### Stack traces
+Stack Error is an experiment, and the hypothesis being tested is: does an error type that sits somewhere between `anyhow` and `thiserror` in terms of ergonomics and flexibility provide a good development experience. `anyhow` is the faster, more ergonomic way to write application code. And `thiserror` is the more flexible way to write bespoke library error types. If it succeeds, `stackerror` could be a pragmatic choice that's good enough for most cases, reducing the mental overhead of choosing and designing an error handling strategy for each project.
+
+### Anyhow comparison
+
+Stack Error is inspired by the [anyhow](https://docs.rs/anyhow/latest/anyhow/) library, and aims to borrow from its ergonomics while being suitable for library development. Using `anyhow` makes development quick as error handling is nearly always just a matter of adding the `?` operator. But this can slow down the debugging experience. Consider this example:
+
+```rust
+use serde::Deserialize;
+use anyhow::Result;
+
+#[derive(Debug, Deserialize)]
+struct Config {
+    key: String,
+}
+
+fn print_config(data: &str) -> Result<()> {
+    let config: Config = serde_json::from_str(data)?;
+    println!("{:?}", config);
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    print_config(r#"{"key": "value", "invalid"}"#)?;
+    Ok(())
+}
+```
+
+The resulting error message is: ``Error: expected `:` at line 1 column 27``. The message clearly states what went wrong, but not _how_ it went wrong (i.e. deserializing a config for printing). Running with with  the `RUST_BACKTRACE=1` prints a backtrace with this information, though it contains nearly 20 unrelated frames. Debugging this example is feasible, but a bit cumbersome.
+
+And as a an application project grows, the distinction between application and library can become blurred as modules are introduced to support the application code. You might eventually find you want to handle some errors, but the `anyhow::Error` type is opaque. You can use `anyhow::Error::downcast`, but this is cumbersome as you need to try to downcast to every possible error type.
+
+```rust
+use anyhow::Result;
+use reqwest;
+
+fn fetch_data(resource: &str) -> Result<String> {
+    let url = reqwest::Url::parse("https://busy.example")?.join(resource)?;
+    let response = reqwest::blocking::get(url)?;
+    let data = response.text()?;
+    Ok(data)
+}
+
+fn print_data() -> Result<()> {
+    match fetch_data("resource") {
+        Ok(data) => println!("{}", data),
+        Err(_) => {
+            // should I retry the request, or will it fail because I sent an
+            // invalid resource name?
+        }
+    }
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    print_data()?;
+    Ok(())
+}
+```
+
+## Stack traces
 
 The [`ErrorStacks`] used with the [`stack_msg!`] macro allow for the construction of pseudo-traces which can be clearer  than a full stack trace. However, stack traces can still be useful to get a more complete picture of the state of the program when an error occurred.
 

@@ -20,7 +20,7 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
         #input
 
         impl #name {
-            fn new(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+            pub fn new(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
                 Self(#first_field_type::new(error))
             }
         }

@@ -12,7 +12,7 @@ keywords = ["error", "error-handling"]
 doctest = false
 
 [dependencies]
-stackerror-impl = { version = "=0.1.0", path = "impl" }
+stackerror-impl = { version = "=0.1.2", path = "impl" }
 
 [workspace]
 members = ["impl"]

@@ -4,51 +4,93 @@ A pragmatic error handling library for Rust that provides helpful strings for de
 
 ## Overview
 
-Stack Error provides an error type that is appropriate for library development while providing ergonomics similar to [anyhow](https://docs.rs/anyhow/latest/anyhow/).
+- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, providing clarity to the code. The [`stack_msg!`] macro includes the file and line number in the error message.
 
-- Provides error types that implement [`std::error::Error`]. Errors are compatible with the broader Rust ecosystem.
-- Provides rich error context by chaining errors, and using the [`stack_msg!`] macro to include file and line information in error messages.
-- Facilitates runtime error handling by providing a structured error data. The caller can match on the error code and inspect an optional resource URI to handle errors programmatically.
+  ```rust
+  use stackerror::prelude::*;
+
+  pub fn process_data(data: &str) -> Result<String> {
+      let data: Vec<String> = serde_json::from_str(data)
+          .map_err(StackError::new)
+          .stack_err(stack_msg!("data is not a list of strings"))?;
+      data
+          .first()
+          .cloned()
+          .ok_or(StackError::new(stack_msg!("data is empty")))
+  }
+  ```
+
+- Facilitates runtime error handling by providing an optional error code and URI. The caller can match on the error code and inspect an optional resource URI to handle errors programmatically.
+
+  ```rust
+  use stackerror::prelude::*;
+  
+  fn fetch_data(url: &str) -> Result<String> {
+      let response = reqwest::blocking::get(url)
+          .map_err(StackError::new)
+          .stack_err(stack_msg!("unable to get data"))
+          // the caller can handle this by trying to get the resource from 
+          // another location
+          .with_err_code(ErrorCode::ResourceUnavailable)
+          .with_err_uri(url.to_string())?;
+      let data = response
+          .text()
+          .map_err(StackError::new)
+          // the caller can handle this by bypassing the resource
+          .with_err_code(ErrorCode::InvalidResource)
+          .with_err_uri(url.to_string())?;
+      Ok(data)
+  }
+  ```
+
 - Supports custom error types using a derive macros. Define your own error types, allowing you to create custom methods such as [`std::convert::From`] implementations.
+- Provides error types that implement [`std::error::Error`]. Errors are compatible with the broader Rust ecosystem.
 
 ## Usage
 
-Import the prelude to get started:
+You start simply by using the [`StackError`] type directly, but it's recommended to wrap it in your own error type using the [`derive_stack_error`] macro:
 
 ```rust
-use stackerror::prelude::*;
+// src/errors.rs
+
+pub use stackerror::prelude::*;
+
+#[derive_stack_error]
+struct LibError(StackError);
+
+pub type Result<T> = std::result::Result<T, LibError>;
 ```
 
-This will import the [`StackError`] type, the [`ErrorCode`] enum, the [`stack_msg!`] macro, and the traits used to build and stack errors.
+The prelude provides the [`ErrorStacks`] trait, the [`stack_msg!`] macro, and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `LibError` and for any `Result<T, LibError>`.
 
-You can build a new [`StackError`] from anything that is [`std::fmt::Display`]:
+You can build a new error from anything that is [`std::fmt::Display`]:
 
 ```rust
-use stackerror::prelude::*;
+use crate::errors::prelude::*;
 
-fn process_data() -> Result<(), StackError> {
-    Err(StackError::new("failed to process data"))
+fn process_data() -> Result<()> {
+    Err(LibError::new("failed to process data"))
 }
 ```
 
 You can include file and line information in error messages using the [`stack_msg!`] macro:
 
 ```rust
-use stackerror::prelude::*;
+use crate::errors::prelude::*;
 
-fn process_data() -> Result<(), StackError> {
-    Err(StackError::new(stack_msg!("failed to process data")))
+fn process_data() -> Result<()> {
+    Err(LibError::new(stack_msg!("failed to process data")))
 }
 ```
 
 You can include optional error handling information:
 
 ```rust
-use stackerror::prelude::*;
+use crate::errors::prelude::*;
 
-fn process_data() -> Result<(), StackError> {
+fn process_data() -> Result<()> {
     Err(
-        StackError::new(stack_msg!("failed to process data"))
+        LibError::new(stack_msg!("failed to process data"))
         .with_err_code(ErrorCode::ResourceBusy)
         .with_err_uri("https://example.com/busy-resource")
     )
@@ -72,13 +114,13 @@ fn main() {
 You can chain errors together to provide context in the error message:
 
 ```rust
-use stackerror::prelude::*;
+use crate::errors::prelude::*;
 
-pub read_data() -> Result<String, StackError> {
-    Err(StackError::new(stack_msg!("failed to read data")))
+pub read_data() -> Result<String> {
+    Err(LibError::new(stack_msg!("failed to read data")))
 }
 
-pub process_data() -> Result<(), StackError> {
+pub process_data() -> Result<()> {
     // NOTE: stack_err can be called directly on the Result
     read_data().stack_err(stack_msg!("failed to process data"))
 }
@@ -89,21 +131,6 @@ This would result in an error message like:
 ```
 src/main:8 failed to process data
 src/main:4 failed to read data
-```
-
-You can define your own error type. This allows you to implement your own methods, such as [`std::convert::From`] implementations for upstream error types frequently used in your library.
-
-```rust
-use stackerror::prelude::*;
-
-#[derive_stack_error]
-struct AppError(StackError);
-
-impl std::convert::From<std::io::Error> for AppError {
-    fn from(err: std::io::Error) -> Self {
-        AppError::new(err)
-    }
-}
 ```
 
 You can use your own error codes by defining an `ErrorCode` type in the scope where `derive_stack_error` is used:
@@ -118,20 +145,16 @@ enum ErrorCode {
 }
 
 #[derive_stack_error]
-struct AppError(StackError);
+struct ErrorWithCustomCodes(StackError);
 ```
 
 ## Rationale
 
-There are two distinct situation in which errors are used: during debugging and at runtime. During debugging, an error should provide an actionable and human-readable message that conveys _what_ went wrong and _how_ it happened. Whereas at runtime, an error should provide typed data allowing calling code to take appropriate error handling actions.
-
-Stack Error is addresses those needs separately. First by offering an ergonomic interface for writing good error messages explaining _what_ went wrong, second by building a pseudo-trace that is focused on providing the relevant context to understand _how_ an error ocurred, and third by offering a generic interface to for a caller to get information about what resource caused and error and how to recover from it.
-
-Stack Error is an experiment, and the hypothesis being tested is: does an error type that sits somewhere between `anyhow` and `thiserror` in terms of ergonomics and flexibility provide a good development experience. `anyhow` is the faster, more ergonomic way to write application code. And `thiserror` is the more flexible way to write bespoke library error types. If it succeeds, `stackerror` could be a pragmatic choice that's good enough for most cases, reducing the mental overhead of choosing and designing an error handling strategy for each project.
+The Rust error handling ecosystem is largely built on two fantastic libraries: [`anyhow`](https://docs.rs/anyhow/latest/anyhow/) and [`thiserror`](https://docs.rs/thiserror/latest/thiserror/). Stack Error aims to explore the space between these two libraries: providing ergonomic error handling and an error type that is suitable for library development.
 
 ### Anyhow comparison
 
-Stack Error is inspired by the [anyhow](https://docs.rs/anyhow/latest/anyhow/) library, and aims to borrow from its ergonomics while being suitable for library development. Using `anyhow` makes development quick as error handling is nearly always just a matter of adding the `?` operator. But this can slow down the debugging experience. Consider this example:
+Using `anyhow` makes development quick as error handling is nearly always just a matter of adding the `?` operator. But this can slow down the debugging process. Consider this example:
 
 ```rust
 use serde::Deserialize;
@@ -154,37 +177,22 @@ fn main() -> Result<()> {
 }
 ```
 
-The resulting error message is: ``Error: expected `:` at line 1 column 27``. The message clearly states what went wrong, but not _how_ it went wrong (i.e. deserializing a config for printing). Running with with  the `RUST_BACKTRACE=1` prints a backtrace with this information, though it contains nearly 20 unrelated frames. Debugging this example is feasible, but a bit cumbersome.
+The resulting error message is: ``Error: expected `:` at line 1 column 27``. The message clearly states what went wrong, but not _how_ it went wrong: what was the program decoding, and why is the value needed. Running with `RUST_BACKTRACE=1` prints a backtrace that can answer these questions, though it contains nearly 20 unrelated frames. Debugging this example is feasible, but a bit cumbersome.
 
-And as a an application project grows, the distinction between application and library can become blurred as modules are introduced to support the application code. You might eventually find you want to handle some errors, but the `anyhow::Error` type is opaque. You can use `anyhow::Error::downcast`, but this is cumbersome as you need to try to downcast to every possible error type.
+Handling all errors with the `?` operator speeds up the writing process, but can hinder the overall development process by making debugging more difficult. `anyhow` offers an alternative: the [`anyhow::Context`] trait.
 
-```rust
-use anyhow::Result;
-use reqwest;
+Using the `context` method helps provide clear error messages that answer _what_ went wrong and _how_ it went wrong. It also helps document the code by co-locating error sources with their corresponding error messages. This is the inspiration for Stack Error's `stack_err` method.
 
-fn fetch_data(resource: &str) -> Result<String> {
-    let url = reqwest::Url::parse("https://busy.example")?.join(resource)?;
-    let response = reqwest::blocking::get(url)?;
-    let data = response.text()?;
-    Ok(data)
-}
+As a an application grows, the distinction between application and library can become blurred as modules are introduced to support the application code. You might eventually find you want to handle some errors. You can use `anyhow::Error::downcast`, but this is cumbersome as you need to try to downcast to every possible error type.
 
-fn print_data() -> Result<()> {
-    match fetch_data("resource") {
-        Ok(data) => println!("{}", data),
-        Err(_) => {
-            // should I retry the request, or will it fail because I sent an
-            // invalid resource name?
-        }
-    }
-    Ok(())
-}
+### Thiserror comparison
 
-fn main() -> Result<()> {
-    print_data()?;
-    Ok(())
-}
-```
+The `thiserror` library provides flexible tools to facilitate the creation of custom error types. There is no one way to use it, so it's hard to make a direct comparison other than to say: Stack Error is opinionated and aims to be minimal but generally useful. This reduces the effort required to develop (and stick to) a good error handling strategy for your project. By contrast, when using `thiserror`, you have to make many decisions at the start of a project about where and how to define your errors. And if you don't put much thought into the design of your errors, you could end up:
+
+- Constantly duplicating error messages in enum variant names and error message strings;
+- Creating generic errors that result in poor debugging messages and insufficient runtime information for error handling;
+- Creating too many errors exposing the internals of your library or application, making it hard to refactor;
+- Having to move back-and-forth between writing code and defining error variants in separate files.
 
 ## Stack traces
 

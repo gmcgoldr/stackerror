@@ -1,8 +1,5 @@
 //! Prelude module that exports commonly used types and traits.
 
-pub use crate::error::{ErrorCode, StackError};
+pub use crate::error::{ErrorCode, ErrorStacks, StackError};
 pub use crate::stack_msg;
-pub use crate::traits::{
-    ErrorStacks, ErrorStacksWithCode, ErrorStacksWithCodeUri, ErrorStacksWithUri, ErrorWithCode,
-    ErrorWithUri,
-};
+pub type Result<T> = std::result::Result<T, StackError>;

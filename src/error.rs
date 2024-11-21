@@ -1,10 +1,61 @@
-//! This module provides the [`StackError`] struct which implements the error
-//! traits provided by this crate.
+//! This module provides the [`StackError`] struct which implements the
+//! [`ErrorStacks`] trait.
 
-use crate::traits::{
-    ErrorStacks, ErrorStacksWithCode, ErrorStacksWithCodeUri, ErrorStacksWithUri, ErrorWithCode,
-    ErrorWithUri,
-};
+/// Trait for stacking errors: errors that stack and provide an optional error
+/// code and resource URI for runtime error handling.
+pub trait ErrorStacks<C>
+where
+    C: Send + Sync + 'static + Eq + PartialEq + Clone,
+{
+    /// Get the error code if one is set.
+    fn err_code(&self) -> Option<&C>;
+    /// Set the error code.
+    fn with_err_code(self, code: Option<C>) -> Self;
+    /// Get the error URI if one is set.
+    fn err_uri(&self) -> Option<&str>;
+    /// Set the error URI.
+    fn with_err_uri(self, uri: Option<String>) -> Self;
+    /// Stack a new error on the current one, omitting the code and URI
+    fn stack_err_bare(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
+    /// Stack a new error on the current one, preserving the code and URI
+    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self
+    where
+        Self: Sized,
+    {
+        let code = self.err_code().cloned();
+        let uri = self.err_uri().map(String::from);
+        self.stack_err_bare(error)
+            .with_err_code(code)
+            .with_err_uri(uri)
+    }
+}
+
+/// Implementation for [`Result`] allows adding error codes on results.
+impl<T, E, C> ErrorStacks<C> for Result<T, E>
+where
+    C: Send + Sync + 'static + Eq + PartialEq + Clone,
+    E: ErrorStacks<C>,
+{
+    fn err_code(&self) -> Option<&C> {
+        self.as_ref().err().and_then(|e| e.err_code())
+    }
+
+    fn with_err_code(self, code: Option<C>) -> Self {
+        self.map_err(|e| e.with_err_code(code))
+    }
+
+    fn err_uri(&self) -> Option<&str> {
+        self.as_ref().err().and_then(|e| e.err_uri())
+    }
+
+    fn with_err_uri(self, uri: Option<String>) -> Self {
+        self.map_err(|e| e.with_err_uri(uri))
+    }
+
+    fn stack_err_bare(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        self.map_err(|e| e.stack_err_bare(error))
+    }
+}
 
 /// Error handling codes.
 ///
@@ -43,18 +94,7 @@ impl StackError {
     }
 }
 
-impl ErrorStacks for StackError {
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-        Self {
-            error: Box::new(error),
-            source: Some(Box::new(self)),
-            code: None,
-            uri: None,
-        }
-    }
-}
-
-impl ErrorWithCode<ErrorCode> for StackError {
+impl ErrorStacks<ErrorCode> for StackError {
     fn err_code(&self) -> Option<&ErrorCode> {
         self.code.as_ref()
     }
@@ -62,9 +102,7 @@ impl ErrorWithCode<ErrorCode> for StackError {
     fn with_err_code(self, code: Option<ErrorCode>) -> Self {
         Self { code, ..self }
     }
-}
 
-impl ErrorWithUri for StackError {
     fn err_uri(&self) -> Option<&str> {
         self.uri.as_deref()
     }
@@ -72,41 +110,13 @@ impl ErrorWithUri for StackError {
     fn with_err_uri(self, uri: Option<String>) -> Self {
         Self { uri, ..self }
     }
-}
 
-impl ErrorStacksWithCode for StackError {
-    fn stack_err_code(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-        let code = self.code;
-        Self {
-            error: Box::new(error),
-            source: Some(Box::new(self)),
-            code,
-            uri: None,
-        }
-    }
-}
-
-impl ErrorStacksWithUri for StackError {
-    fn stack_err_uri(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-        let uri = self.uri.clone();
+    fn stack_err_bare(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
         Self {
             error: Box::new(error),
             source: Some(Box::new(self)),
             code: None,
-            uri,
-        }
-    }
-}
-
-impl ErrorStacksWithCodeUri for StackError {
-    fn stack_err_code_uri(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-        let code = self.code;
-        let uri = self.uri.clone();
-        Self {
-            error: Box::new(error),
-            source: Some(Box::new(self)),
-            code,
-            uri,
+            uri: None,
         }
     }
 }

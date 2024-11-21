@@ -1,10 +1,10 @@
 # Stack Error
 
-A pragmatic error handling library for Rust that provides helpful strings for debugging, and structured data for runtime error handling.
+A pragmatic error handling library for Rust that provides helpful messages for debugging, and structured data for runtime error handling.
 
 ## Overview
 
-- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, providing clarity to the code. The [`stack_msg!`] macro includes the file and line number in the error message.
+- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, providing code clarity. The [`stack_msg!`] macro includes the file and line number in the error message.
 
   ```rust
   use stackerror::prelude::*;
@@ -16,11 +16,11 @@ A pragmatic error handling library for Rust that provides helpful strings for de
       data
           .first()
           .cloned()
-          .ok_or(StackError::new(stack_msg!("data is empty")))
+          .ok_or_else(|| StackError::new(stack_msg!("data is empty")))
   }
   ```
 
-- Facilitates runtime error handling by providing an optional error code and URI. The caller can match on the error code and inspect an optional resource URI to handle errors programmatically.
+- Facilitates runtime error handling by providing an optional error code and URI. The caller can match on the code and inspect the URI to handle errors programmatically.
 
   ```rust
   use stackerror::prelude::*;
@@ -28,7 +28,7 @@ A pragmatic error handling library for Rust that provides helpful strings for de
   fn fetch_data(url: &str) -> Result<String> {
       let response = reqwest::blocking::get(url)
           .map_err(StackError::new)
-          .stack_err(stack_msg!("unable to get data"))
+          .stack_err(stack_msg!("unable to get the data"))
           // the caller can handle this by trying to get the resource from 
           // another location
           .with_err_code(ErrorCode::ResourceUnavailable)
@@ -36,6 +36,7 @@ A pragmatic error handling library for Rust that provides helpful strings for de
       let data = response
           .text()
           .map_err(StackError::new)
+          .stack_err(stack_msg!("unable to prase the data"))
           // the caller can handle this by bypassing the resource
           .with_err_code(ErrorCode::InvalidResource)
           .with_err_uri(url.to_string())?;

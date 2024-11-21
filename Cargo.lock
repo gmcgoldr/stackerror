@@ -22,14 +22,14 @@ dependencies = [
 
 [[package]]
 name = "stackerror"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "stackerror-impl",
 ]
 
 [[package]]
 name = "stackerror-impl"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",

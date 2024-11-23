@@ -4,39 +4,31 @@ A pragmatic error handling library for Rust that provides helpful messages for d
 
 ## Overview
 
-- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, providing code clarity. The [`stack_msg!`] macro includes the file and line number in the error message.
+- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, providing code clarity.
 
   ```rust
-  use stackerror::prelude::*;
-
   pub fn process_data(data: &str) -> Result<String> {
       let data: Vec<String> = serde_json::from_str(data)
-          .map_err(StackError::new)
-          .stack_err(stack_msg!("data is not a list of strings"))?;
-      data
-          .first()
+          .map_err(stack_map!("data is not a list of strings"))?;
+      data.first()
           .cloned()
-          .ok_or_else(|| StackError::new(stack_msg!("data is empty")))
+          .ok_or_else(stack_else!("data is empty"))
   }
   ```
 
 - Facilitates runtime error handling by providing an optional error code and URI. The caller can match on the code and inspect the URI to handle errors programmatically.
 
   ```rust
-  use stackerror::prelude::*;
-  
   fn fetch_data(url: &str) -> Result<String> {
       let response = reqwest::blocking::get(url)
-          .map_err(StackError::new)
-          .stack_err(stack_msg!("unable to get the data"))
+          .map_err(stack_map!("unable to get the data"))
           // the caller can handle this by trying to get the resource from 
           // another location
           .with_err_code(ErrorCode::ResourceUnavailable)
           .with_err_uri(url.to_string())?;
       let data = response
           .text()
-          .map_err(StackError::new)
-          .stack_err(stack_msg!("unable to prase the data"))
+          .map_err(stack_map!("unable to prase the data"))
           // the caller can handle this by bypassing the resource
           .with_err_code(ErrorCode::InvalidResource)
           .with_err_uri(url.to_string())?;
@@ -44,12 +36,12 @@ A pragmatic error handling library for Rust that provides helpful messages for d
   }
   ```
 
-- Supports custom error types using a derive macros. Define your own error types, allowing you to create custom methods such as [`std::convert::From`] implementations.
+- Define your own error type, allowing you to create custom methods such as [`std::convert::From`] implementations.
 - Provides error types that implement [`std::error::Error`]. Errors are compatible with the broader Rust ecosystem.
 
 ## Usage
 
-You start simply by using the [`StackError`] type directly, but it's recommended to wrap it in your own error type using the [`derive_stack_error`] macro:
+Create your error type by using the `derive_stack_error` macro:
 
 ```rust
 // src/errors.rs
@@ -62,7 +54,7 @@ struct LibError(StackError);
 pub type Result<T> = std::result::Result<T, LibError>;
 ```
 
-The prelude provides the [`ErrorStacks`] trait, the [`stack_msg!`] macro, and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `LibError` and for any `Result<T, LibError>`.
+The prelude provides the [`ErrorStacks`] trait; the [`stack_msg!`] macros; and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `LibError` and for any `Result<T, LibError>`. The `derive_stack_error` builds a new error type wrapping `StackError`, and provides the `stack_map!` and `stack_else!` macros.
 
 You can build a new error from anything that is [`std::fmt::Display`]:
 
@@ -132,6 +124,29 @@ This would result in an error message like:
 ```
 src/main:8 failed to process data
 src/main:4 failed to read data
+```
+
+You can wrap an existing error:
+
+```rust
+use crate::errors::prelude::*;
+
+pub fn process_data(data: &str) -> Vec<String> {
+    Vec<String> = serde_json::from_str(data)
+        .map_err(Error::new)
+        .stack_err(stack_msg!("data is not a list of strings"))
+}
+```
+
+The [`stack_map!`] (and similarly [`stack_else!`]) macro offers a shorthand for this common pattern:
+
+```rust
+use crate::errors::prelude::*;
+
+pub fn process_data(data: &str) -> Vec<String> {
+    Vec<String> = serde_json::from_str(data)
+        .map_err(stack_map!("data is not a list of strings"))
+}
 ```
 
 You can use your own error codes by defining an `ErrorCode` type in the scope where `derive_stack_error` is used:

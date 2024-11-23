@@ -43,31 +43,30 @@ mod tests {
 
     // Add this custom error struct
     #[derive_stack_error]
-    struct CustomError(StackError);
+    struct LibError(StackError);
 
     #[test]
     fn test_custom_error_builds() {
-        let custom_error = CustomError::new("Custom error");
+        let custom_error = LibError::new("Custom error");
         assert_eq!(custom_error.to_string(), "Custom error");
     }
 
     #[test]
     fn test_custom_has_code() {
-        let coded_error =
-            CustomError::new("Coded error").with_err_code(Some(ErrorCode::InvalidInput));
+        let coded_error = LibError::new("Coded error").with_err_code(Some(ErrorCode::InvalidInput));
         assert_eq!(coded_error.err_code(), Some(&ErrorCode::InvalidInput));
     }
 
     #[test]
     fn test_custom_has_uri() {
-        let uri_error = CustomError::new("URI error")
-            .with_err_uri(Some("https://example.com/custom".to_string()));
+        let uri_error =
+            LibError::new("URI error").with_err_uri(Some("https://example.com/custom".to_string()));
         assert_eq!(uri_error.err_uri(), Some("https://example.com/custom"));
     }
 
     #[test]
     fn test_custom_error_stacks() {
-        let base_error = CustomError::new("Base custom error")
+        let base_error = LibError::new("Base custom error")
             .with_err_code(Some(ErrorCode::InvalidInput))
             .with_err_uri(Some("https://example.com/base_custom".to_string()));
         let stacked_error = base_error.stack_err("Stacked custom error");
@@ -80,5 +79,21 @@ mod tests {
             stacked_error.err_uri(),
             Some("https://example.com/base_custom")
         );
+    }
+
+    #[test]
+    fn test_error_creation_map() {
+        let error: Result<(), LibError> =
+            Err(LibError::new("Base error")).map_err(stack_map!("Stacked error"));
+        assert!(error
+            .unwrap_err()
+            .to_string()
+            .ends_with("Stacked error\nBase error"));
+    }
+
+    #[test]
+    fn test_error_creation_fn() {
+        let error: Result<(), LibError> = Option::None.ok_or_else(stack_else!("Base error"));
+        assert!(error.unwrap_err().to_string().ends_with("Base error"));
     }
 }

@@ -15,19 +15,8 @@ where
     fn err_uri(&self) -> Option<&str>;
     /// Set the error URI.
     fn with_err_uri(self, uri: Option<String>) -> Self;
-    /// Stack a new error on the current one, omitting the code and URI
-    fn stack_err_bare(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
-    /// Stack a new error on the current one, preserving the code and URI
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self
-    where
-        Self: Sized,
-    {
-        let code = self.err_code().cloned();
-        let uri = self.err_uri().map(String::from);
-        self.stack_err_bare(error)
-            .with_err_code(code)
-            .with_err_uri(uri)
-    }
+    /// Stack a new error on the current one.
+    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
 }
 
 /// Implementation for [`Result`] allows adding error codes on results.
@@ -52,8 +41,8 @@ where
         self.map_err(|e| e.with_err_uri(uri))
     }
 
-    fn stack_err_bare(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-        self.map_err(|e| e.stack_err_bare(error))
+    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        self.map_err(|e| e.stack_err(error))
     }
 }
 
@@ -80,6 +69,7 @@ pub struct StackError {
     source: Option<Box<StackError>>,
     code: Option<ErrorCode>,
     uri: Option<String>,
+    level: usize,
 }
 
 impl StackError {
@@ -90,6 +80,7 @@ impl StackError {
             source: None,
             code: None,
             uri: None,
+            level: 0,
         }
     }
 }
@@ -111,12 +102,16 @@ impl ErrorStacks<ErrorCode> for StackError {
         Self { uri, ..self }
     }
 
-    fn stack_err_bare(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        let code = self.code;
+        let uri = self.uri.clone();
+        let level = self.level + 1;
         Self {
             error: Box::new(error),
             source: Some(Box::new(self)),
-            code: None,
-            uri: None,
+            code,
+            uri,
+            level,
         }
     }
 }
@@ -124,8 +119,8 @@ impl ErrorStacks<ErrorCode> for StackError {
 impl std::fmt::Display for StackError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self.source {
-            Some(source) => write!(f, "{}\n{}", self.error, source),
-            None => write!(f, "{}", self.error),
+            Some(source) => write!(f, "{}\n{}: {}", source, self.level, self.error),
+            None => write!(f, "{}: {}", self.level, self.error),
         }
     }
 }

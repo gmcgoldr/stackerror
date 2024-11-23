@@ -42,8 +42,8 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
                 Self(self.0.with_err_uri(uri))
             }
 
-            fn stack_err_bare(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-                Self(self.0.stack_err_bare(error))
+            fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(self.0.stack_err(error))
             }
         }
 

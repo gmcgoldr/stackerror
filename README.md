@@ -9,10 +9,10 @@ A pragmatic error handling library for Rust that provides helpful messages for d
   ```rust
   pub fn process_data(data: &str) -> Result<String> {
       let data: Vec<String> = serde_json::from_str(data)
-          .map_err(stack_map!("data is not a list of strings"))?;
+          .map_err(stack_map!(Error, "data is not a list of strings"))?;
       data.first()
           .cloned()
-          .ok_or_else(stack_else!("data is empty"))
+          .ok_or_else(stack_else!(Error, "data is empty"))
   }
   ```
 
@@ -21,14 +21,14 @@ A pragmatic error handling library for Rust that provides helpful messages for d
   ```rust
   fn fetch_data(url: &str) -> Result<String> {
       let response = reqwest::blocking::get(url)
-          .map_err(stack_map!("unable to get the data"))
+          .map_err(stack_map!(Error, "unable to get the data"))
           // the caller can handle this by trying to get the resource from 
           // another location
           .with_err_code(ErrorCode::ResourceUnavailable)
           .with_err_uri(url.to_string())?;
       let data = response
           .text()
-          .map_err(stack_map!("unable to prase the data"))
+          .map_err(stack_map!(Error, "unable to prase the data"))
           // the caller can handle this by bypassing the resource
           .with_err_code(ErrorCode::InvalidResource)
           .with_err_uri(url.to_string())?;
@@ -49,12 +49,12 @@ Create your error type by using the `derive_stack_error` macro:
 pub use stackerror::prelude::*;
 
 #[derive_stack_error]
-struct LibError(StackError);
+struct Error(StackError);
 
-pub type Result<T> = std::result::Result<T, LibError>;
+pub type Result<T> = std::result::Result<T, Error>;
 ```
 
-The prelude provides the [`ErrorStacks`] trait; the [`stack_msg!`] macros; and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `LibError` and for any `Result<T, LibError>`. The `derive_stack_error` builds a new error type wrapping `StackError`, and provides the `stack_map!` and `stack_else!` macros.
+The prelude provides the [`ErrorStacks`] trait; the [`stack_msg!`], [`stack_map!`] and [stack_else!`] macros; and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `Error` and for any `Result<T, Error>`.
 
 You can build a new error from anything that is [`std::fmt::Display`]:
 
@@ -62,7 +62,7 @@ You can build a new error from anything that is [`std::fmt::Display`]:
 use crate::errors::prelude::*;
 
 fn process_data() -> Result<()> {
-    Err(LibError::new("failed to process data"))
+    Err(Error::new("failed to process data"))
 }
 ```
 
@@ -72,7 +72,7 @@ You can include file and line information in error messages using the [`stack_ms
 use crate::errors::prelude::*;
 
 fn process_data() -> Result<()> {
-    Err(LibError::new(stack_msg!("failed to process data")))
+    Err(Error::new(stack_msg!("failed to process data")))
 }
 ```
 
@@ -83,7 +83,7 @@ use crate::errors::prelude::*;
 
 fn process_data() -> Result<()> {
     Err(
-        LibError::new(stack_msg!("failed to process data"))
+        Error::new(stack_msg!("failed to process data"))
         .with_err_code(ErrorCode::ResourceBusy)
         .with_err_uri("https://example.com/busy-resource")
     )
@@ -110,7 +110,7 @@ You can chain errors together to provide context in the error message:
 use crate::errors::prelude::*;
 
 pub read_data() -> Result<String> {
-    Err(LibError::new(stack_msg!("failed to read data")))
+    Err(Error::new(stack_msg!("failed to read data")))
 }
 
 pub process_data() -> Result<()> {

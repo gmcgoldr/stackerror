@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 mod error;
-mod message;
+mod macros;
 pub mod prelude;
 
 pub use prelude::*;
@@ -81,13 +81,14 @@ mod tests {
     #[test]
     fn test_derived_creation_map() {
         let error: Result<(), LibError> =
-            Err(LibError::new("Base error")).map_err(stack_map!("Stacked error"));
+            Err(LibError::new("Base error")).map_err(stack_map!(LibError, "Stacked error"));
         assert!(error.unwrap_err().to_string().ends_with("Stacked error"));
     }
 
     #[test]
     fn test_derived_creation_fn() {
-        let error: Result<(), LibError> = Option::None.ok_or_else(stack_else!("Base error"));
+        let error: Result<(), LibError> =
+            Option::None.ok_or_else(stack_else!(LibError, "Base error"));
         assert!(error.unwrap_err().to_string().ends_with("Base error"));
     }
 }

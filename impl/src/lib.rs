@@ -64,20 +64,6 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
                 self.0.source()
             }
         }
-
-        /// Builds a closure that builds a new error from the given message,
-        /// prefixed with the file name and line number.
-        #[macro_export]
-        macro_rules! stack_else {
-            ($($arg:tt)*) => {|| #name::new(stack_msg!($($arg)*))}
-        }
-
-        /// Builds a closure that maps an error and stacks the given message,
-        /// prefixed with the file name and line number.
-        #[macro_export]
-        macro_rules! stack_map {
-            ($($arg:tt)*) => {|err| #name::new(err).stack_err(stack_msg!($($arg)*))}
-        }
     };
 
     TokenStream::from(expanded)

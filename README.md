@@ -132,7 +132,7 @@ You can wrap an existing error:
 use crate::errors::prelude::*;
 
 pub fn process_data(data: &str) -> Vec<String> {
-    Vec<String> = serde_json::from_str(data)
+    let _list: Vec<String> = serde_json::from_str(data)
         .map_err(Error::new)
         .stack_err(stack_msg!("data is not a list of strings"))
 }
@@ -144,7 +144,7 @@ The [`stack_map!`] (and similarly [`stack_else!`]) macro offers a shorthand for 
 use crate::errors::prelude::*;
 
 pub fn process_data(data: &str) -> Vec<String> {
-    Vec<String> = serde_json::from_str(data)
+    let _list: Vec<String> = serde_json::from_str(data)
         .map_err(stack_map!("data is not a list of strings"))
 }
 ```

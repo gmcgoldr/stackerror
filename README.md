@@ -138,14 +138,14 @@ pub fn process_data(data: &str) -> Vec<String> {
 }
 ```
 
-The [`stack_map!`] (and similarly [`stack_else!`]) macro offers a shorthand for this common pattern:
+The [`stack_map!`] (and similarly [`stack_else!`]) macro offers a shorthand for this common pattern. They accept the error type to wrap the original error with, and the error message to stack onto it. The error type must be `ErrorStacks`.
 
 ```rust
 use crate::errors::prelude::*;
 
 pub fn process_data(data: &str) -> Vec<String> {
     serde_json::from_str(data)
-        .map_err(stack_map!("data is not a list of strings"))
+        .map_err(stack_map!(Error, "data is not a list of strings"))
 }
 ```
 

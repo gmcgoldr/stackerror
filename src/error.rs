@@ -60,6 +60,8 @@ pub enum ErrorCode {
     ResourceBusy,
     /// A resource required by the function isn't available.
     ResourceUnavailable,
+    /// A resource required by the function exists but is forbidden.
+    ResourceForbidden,
 }
 
 /// A simple error type that implements the [`ErrorStacks`] [`ErrorWithCode`]

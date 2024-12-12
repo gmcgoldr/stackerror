@@ -41,6 +41,30 @@ mod tests {
         assert_eq!(stacked_error.err_uri(), Some("https://example.com/base"));
     }
 
+    #[test]
+    fn test_stack_map_macro_maps() {
+        let error: Result<(), StackError> =
+            Err(StackError::new("Base error")).map_err(stack_map!(StackError, "Stacked error"));
+        let error = error.unwrap_err();
+        assert!(error.to_string().contains("Base error"));
+        assert!(error.to_string().contains("Stacked error"));
+    }
+
+    #[test]
+    fn test_stack_else_macro_builds() {
+        let error: Result<(), StackError> =
+            Option::None.ok_or_else(stack_else!(StackError, "Base error"));
+        let error = error.unwrap_err();
+        assert!(error.to_string().contains("Base error"));
+    }
+
+    #[test]
+    fn test_stack_err_macro_builds() {
+        let error: Result<(), StackError> = stack_err!(StackError, "Test error");
+        let error = error.unwrap_err();
+        assert!(error.to_string().contains("Test error"));
+    }
+
     // Add this custom error struct
     #[derive_stack_error]
     struct LibError(StackError);

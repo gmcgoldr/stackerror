@@ -54,7 +54,7 @@ struct Error(StackError);
 pub type Result<T> = std::result::Result<T, Error>;
 ```
 
-The prelude provides the [`ErrorStacks`] trait; the [`stack_msg!`], [`stack_map!`] and [stack_else!`] macros; and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `Error` and for any `Result<T, Error>`.
+The prelude provides the [`ErrorStacks`] trait; the [`stack_msg!`], [`stack_map!`] and [`stack_else!`] macros; and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `Error` and for any `Result<T, Error>`.
 
 You can build a new error from anything that is [`std::fmt::Display`]:
 
@@ -122,8 +122,18 @@ pub process_data() -> Result<()> {
 This would result in an error message like:
 
 ```
-src/main:8 failed to process data
-src/main:4 failed to read data
+0: src/main:8 failed to process data
+1: src/main:4 failed to read data
+```
+
+The [`stack_err!`] macro offers a shorthand for the common pattern `Err(Error::new(stack_msg!(...)))`:
+
+```rust
+use crate::errors::prelude::*;
+
+pub read_data() -> Result<String> {
+    stack_err!("failed_to_read_data")
+}
 ```
 
 You can wrap an existing error:

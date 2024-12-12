@@ -54,7 +54,7 @@ struct Error(StackError);
 pub type Result<T> = std::result::Result<T, Error>;
 ```
 
-The prelude provides the [`ErrorStacks`] trait; the [`stack_msg!`], [`stack_map!`] and [`stack_else!`] macros; and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `Error` and for any `Result<T, Error>`.
+The prelude provides the [`ErrorStacks`] trait; the [`stack_msg!`], [`stack_err`], [`stack_map!`] and [`stack_else!`] macros; and the [`ErrorCode`] enum. The [`ErrorStacks`] methods are implemented for your `Error` and for any `Result<T, Error>`.
 
 You can build a new error from anything that is [`std::fmt::Display`]:
 

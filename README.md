@@ -1,20 +1,44 @@
 # Stack Error
 
-A pragmatic error handling library for Rust that provides helpful messages for debugging, and structured data for runtime error handling.
+Stack Error reduces the up-front cost of designing an error handling solution for your project, 
+so that you focus on writing great libraries and applications. Stack Error has three goals:
+
+1. Provide ergonomics similar to [`anyhow`](https://docs.rs/anyhow/latest/anyhow/).
+2. Facilitate error-handling for library development, similar to defining error enums using [`thiserror`](https://docs.rs/thiserror/latest/thiserror/).
+3. Make it easy to write informative error message for debugging.
 
 ## Overview
 
-- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, providing code clarity.
+- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, which helps document your code.
 
   ```rust
-  pub fn process_data(data: &str) -> Result<String> {
+  /// file: process_data.rs
+  use stackerror::prelude::*;
+  pub fn process_data(data: &str) -> StackResult<String> {
       let data: Vec<String> = serde_json::from_str(data)
-          .map_err(stack_map!(Error, "data is not a list of strings"))?;
+          .map_err(stack_map!(StackError, "data is not a list of strings"))?;
       data.first()
           .cloned()
-          .ok_or_else(stack_else!(Error, "data is empty"))
+          .ok_or_else(stack_else!(StackError, "data is empty"))
   }
   ```
+
+  In this example,
+  `stack_map!` and `stack_err!` build a new instance of `StackError`, 
+  adding file name and line number information to the message. 
+  In the case of `stack_err!`, 
+  the error message stacks onto the existing error.
+
+  If the data isn't a list,
+  the resulting error message would look like:
+
+  ```
+  Error: 0: expected value at line 1 column 1
+  src/process_data.rs:3 data is not a list of strings
+  ```
+
+  The serde error is printed first,
+  followed by the StackError message with file name and line number.
 
 - Facilitates runtime error handling by providing an optional error code and URI. The caller can match on the code and inspect the URI to handle errors programmatically.
 

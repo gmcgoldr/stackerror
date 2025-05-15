@@ -1,6 +1,6 @@
 [package]
 name = "stackerror"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 description = "A pragmatic error handling library for Rust that provides helpful strings for debugging, and structured data for runtime error handling."
 readme = "README.md"
@@ -12,7 +12,7 @@ keywords = ["error", "error-handling"]
 doctest = false
 
 [dependencies]
-stackerror-impl = { version = "=0.4.2", path = "impl" }
+stackerror-impl = { version = "=0.5.0", path = "impl" }
 
 [workspace]
 members = ["impl"]

@@ -14,7 +14,7 @@ mod tests {
     #[test]
     fn test_error_builds() {
         let error = StackError::new("Test error");
-        assert_eq!(error.to_string(), "0: Test error");
+        assert_eq!(error.to_string(), "Test error");
     }
 
     #[test]
@@ -36,7 +36,7 @@ mod tests {
             .with_err_code(Some(ErrorCode::InvalidInput))
             .with_err_uri(Some("https://example.com/base".to_string()));
         let stacked_error = base_error.stack_err("Stacked error");
-        assert_eq!(stacked_error.to_string(), "0: Base error\n1: Stacked error");
+        assert_eq!(stacked_error.to_string(), "Base error\nStacked error");
         assert_eq!(stacked_error.err_code(), Some(&ErrorCode::InvalidInput));
         assert_eq!(stacked_error.err_uri(), Some("https://example.com/base"));
     }
@@ -72,7 +72,7 @@ mod tests {
     #[test]
     fn test_derived_builds() {
         let custom_error = LibError::new("Custom error");
-        assert_eq!(custom_error.to_string(), "0: Custom error");
+        assert_eq!(custom_error.to_string(), "Custom error");
     }
 
     #[test]
@@ -94,7 +94,7 @@ mod tests {
             .with_err_code(Some(ErrorCode::InvalidInput))
             .with_err_uri(Some("https://example.com/base_custom".to_string()));
         let stacked_error = base_error.stack_err("Stacked error");
-        assert_eq!(stacked_error.to_string(), "0: Base error\n1: Stacked error");
+        assert_eq!(stacked_error.to_string(), "Base error\nStacked error");
         assert_eq!(stacked_error.err_code(), Some(&ErrorCode::InvalidInput));
         assert_eq!(
             stacked_error.err_uri(),

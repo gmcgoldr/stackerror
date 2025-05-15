@@ -121,8 +121,8 @@ impl ErrorStacks<ErrorCode> for StackError {
 impl std::fmt::Display for StackError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self.source {
-            Some(source) => write!(f, "{}\n{}: {}", source, self.level, self.error),
-            None => write!(f, "{}: {}", self.level, self.error),
+            Some(source) => write!(f, "{}\n{}", source, self.error),
+            None => write!(f, "{}", self.error),
         }
     }
 }

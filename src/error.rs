@@ -1,6 +1,8 @@
 //! This module provides the [`StackError`] struct which implements the
 //! [`ErrorStacks`] trait.
 
+use crate::codes::ErrorCode;
+
 /// Trait for stacking errors: errors that stack and provide an optional error
 /// code and resource URI for runtime error handling.
 pub trait ErrorStacks<C>
@@ -44,24 +46,6 @@ where
     fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
         self.map_err(|e| e.stack_err(error))
     }
-}
-
-/// Error handling codes.
-///
-/// Suggests to the caller how an error could be handled.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum ErrorCode {
-    /// An input to the function is invalid.
-    InvalidInput,
-    /// A resource required by the function is invalid.
-    InvalidResource,
-    /// A resource required by the function isn't currently available, but it
-    /// could be in the future.
-    ResourceBusy,
-    /// A resource required by the function isn't available.
-    ResourceUnavailable,
-    /// A resource required by the function exists but is forbidden.
-    ResourceForbidden,
 }
 
 /// A simple error type that implements the [`ErrorStacks`] [`ErrorWithCode`]

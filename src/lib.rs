@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+pub mod codes;
 mod error;
 mod macros;
 pub mod prelude;
@@ -19,8 +20,9 @@ mod tests {
 
     #[test]
     fn test_error_has_code() {
-        let error = StackError::new("Test error").with_err_code(Some(ErrorCode::InvalidInput));
-        assert_eq!(error.err_code(), Some(&ErrorCode::InvalidInput));
+        let error =
+            StackError::new("Test error").with_err_code(Some(ErrorCode::RuntimeInvalidValue));
+        assert_eq!(error.err_code(), Some(&ErrorCode::RuntimeInvalidValue));
     }
 
     #[test]
@@ -33,11 +35,14 @@ mod tests {
     #[test]
     fn test_error_stacks() {
         let base_error = StackError::new("Base error")
-            .with_err_code(Some(ErrorCode::InvalidInput))
+            .with_err_code(Some(ErrorCode::RuntimeInvalidValue))
             .with_err_uri(Some("https://example.com/base".to_string()));
         let stacked_error = base_error.stack_err("Stacked error");
         assert_eq!(stacked_error.to_string(), "Base error\nStacked error");
-        assert_eq!(stacked_error.err_code(), Some(&ErrorCode::InvalidInput));
+        assert_eq!(
+            stacked_error.err_code(),
+            Some(&ErrorCode::RuntimeInvalidValue)
+        );
         assert_eq!(stacked_error.err_uri(), Some("https://example.com/base"));
     }
 
@@ -77,8 +82,12 @@ mod tests {
 
     #[test]
     fn test_derived_has_code() {
-        let coded_error = LibError::new("Coded error").with_err_code(Some(ErrorCode::InvalidInput));
-        assert_eq!(coded_error.err_code(), Some(&ErrorCode::InvalidInput));
+        let coded_error =
+            LibError::new("Coded error").with_err_code(Some(ErrorCode::RuntimeInvalidValue));
+        assert_eq!(
+            coded_error.err_code(),
+            Some(&ErrorCode::RuntimeInvalidValue)
+        );
     }
 
     #[test]
@@ -91,11 +100,14 @@ mod tests {
     #[test]
     fn test_derived_error_stacks() {
         let base_error = LibError::new("Base error")
-            .with_err_code(Some(ErrorCode::InvalidInput))
+            .with_err_code(Some(ErrorCode::RuntimeInvalidValue))
             .with_err_uri(Some("https://example.com/base_custom".to_string()));
         let stacked_error = base_error.stack_err("Stacked error");
         assert_eq!(stacked_error.to_string(), "Base error\nStacked error");
-        assert_eq!(stacked_error.err_code(), Some(&ErrorCode::InvalidInput));
+        assert_eq!(
+            stacked_error.err_code(),
+            Some(&ErrorCode::RuntimeInvalidValue)
+        );
         assert_eq!(
             stacked_error.err_uri(),
             Some("https://example.com/base_custom")

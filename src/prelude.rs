@@ -1,4 +1,5 @@
-//! Prelude module that exports commonly used types and traits.
+//! Provides re-exports for commonly used types and traits, and defines the
+//! [`StackResult`] type.
 
 pub use crate::codes::ErrorCode;
 pub use crate::error::{ErrorStacks, StackError};

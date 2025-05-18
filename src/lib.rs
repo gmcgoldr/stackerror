@@ -1,8 +1,8 @@
 #![doc = include_str!("../README.md")]
 
 pub mod codes;
-mod error;
-mod macros;
+pub mod error;
+pub mod macros;
 pub mod prelude;
 
 pub use prelude::*;

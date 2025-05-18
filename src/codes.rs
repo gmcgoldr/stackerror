@@ -1,3 +1,5 @@
+//! Provides the [`ErrorCode`] enum.
+
 use std::io::ErrorKind;
 
 /// Error handling codes.

@@ -1,5 +1,5 @@
-//! This module provides the [`StackError`] struct which implements the
-//! [`ErrorStacks`] trait.
+//! Provides the [`StackError`] struct which implements the [`ErrorStacks`]
+//! trait.
 
 use crate::codes::ErrorCode;
 
@@ -48,8 +48,7 @@ where
     }
 }
 
-/// A simple error type that implements the [`ErrorStacks`] [`ErrorWithCode`]
-/// and [`ErrorWithUri`] traits.
+/// A simple error type that implements the [`ErrorStacks`] trait.
 pub struct StackError {
     error: Box<dyn std::fmt::Display + Send + Sync + 'static>,
     source: Option<Box<StackError>>,

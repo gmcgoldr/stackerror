@@ -1,4 +1,4 @@
-//! This module provides a macro for formatting error messages with file and line information.
+//! Provides a macro for formatting error messages with file and line information.
 
 /// Formats a string using `format!`, and prefixes it with the file name and
 /// line number.

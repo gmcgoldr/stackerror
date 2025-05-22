@@ -13,6 +13,17 @@ doctest = false
 
 [dependencies]
 stackerror-impl = { version = "=0.5.1", path = "impl" }
+reqwest = { version = "0.11", optional = true }
+axum = { version = "0.6", optional = true }
+actix-web = { version = "4", optional = true }
+http = { version = "0.2", optional = true }
 
 [workspace]
 members = ["impl"]
+
+[features]
+default = []
+feat_reqwest = ["dep:reqwest"]
+feat_axum = ["dep:axum"]
+feat_actix = ["dep:actix-web"]
+feat_http = ["dep:http"]

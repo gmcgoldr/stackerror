@@ -124,3 +124,37 @@ impl std::error::Error for StackError {
         }
     }
 }
+
+impl From<std::io::Error> for StackError {
+    fn from(error: std::io::Error) -> Self {
+        StackError::new(error)
+    }
+}
+
+#[cfg(feature = "feat_reqwest")]
+impl From<reqwest::Error> for StackError {
+    fn from(error: reqwest::Error) -> Self {
+        StackError::new(error)
+    }
+}
+
+#[cfg(feature = "feat_axum")]
+impl From<axum::BoxError> for StackError {
+    fn from(error: axum::BoxError) -> Self {
+        StackError::new(error)
+    }
+}
+
+#[cfg(feature = "feat_actix")]
+impl From<actix_web::Error> for StackError {
+    fn from(error: actix_web::Error) -> Self {
+        StackError::new(error)
+    }
+}
+
+#[cfg(feature = "feat_http")]
+impl From<http::StatusCode> for StackError {
+    fn from(error: http::StatusCode) -> Self {
+        StackError::new(error)
+    }
+}

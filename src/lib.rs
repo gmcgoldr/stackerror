@@ -11,6 +11,20 @@ pub use stackerror_impl::derive_stack_error;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ErrorStacks; // Already have StackError in prelude
+    use std::io;
+
+    #[cfg(feature = "feat_reqwest")]
+    use reqwest;
+
+    #[cfg(feature = "feat_axum")]
+    use axum::BoxError;
+
+    #[cfg(feature = "feat_actix")]
+    use actix_web;
+
+    #[cfg(feature = "feat_http")]
+    use http;
 
     #[test]
     fn test_error_builds() {
@@ -126,5 +140,63 @@ mod tests {
         let error: Result<(), LibError> =
             Option::None.ok_or_else(stack_else!(LibError, "Base error"));
         assert!(error.unwrap_err().to_string().ends_with("Base error"));
+    }
+
+    #[test]
+    fn test_from_std_io_error() {
+        let original_error_msg = "test io error";
+        let io_error = io::Error::new(io::ErrorKind::Other, original_error_msg);
+        let stack_error = StackError::from(io_error);
+        assert!(stack_error.to_string().contains(original_error_msg));
+    }
+
+    #[cfg(feature = "feat_reqwest")]
+    #[test]
+    fn test_from_reqwest_error() {
+        // Create a reqwest error. This attempts a connection to a port that is likely not listened on.
+        // This requires the `blocking` feature of `reqwest` to be available by default or enabled.
+        // The `reqwest` dependency in Cargo.toml is just `reqwest = { version = "0.11", optional = true }`
+        // which means default features (including blocking) should be enabled.
+        let original_error = reqwest::blocking::Client::new().get("http://127.0.0.1:1").send().unwrap_err();
+        let original_error_msg = original_error.to_string();
+        let stack_error = StackError::from(original_error);
+        assert!(stack_error.to_string().contains(&original_error_msg));
+    }
+
+    #[cfg(feature = "feat_axum")]
+    #[test]
+    fn test_from_axum_box_error() {
+        #[derive(Debug)]
+        struct MyAxumError(&'static str);
+        impl std::fmt::Display for MyAxumError {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+        impl std::error::Error for MyAxumError {}
+
+        let original_error_msg = "test axum error";
+        let axum_error: BoxError = Box::new(MyAxumError(original_error_msg));
+        let stack_error = StackError::from(axum_error);
+        assert!(stack_error.to_string().contains(original_error_msg));
+    }
+
+    #[cfg(feature = "feat_actix")]
+    #[test]
+    fn test_from_actix_web_error() {
+        let original_error_msg = "test actix error";
+        let actix_error = actix_web::error::ErrorInternalServerError(original_error_msg);
+        // actix_web::Error::ErrorInternalServerError creates an error that includes the status code message,
+        // so we check if the supplied message is part of the resulting StackError string.
+        let stack_error = StackError::from(actix_error);
+        assert!(stack_error.to_string().contains(original_error_msg));
+    }
+
+    #[cfg(feature = "feat_http")]
+    #[test]
+    fn test_from_http_status_code() {
+        let status_code = http::StatusCode::NOT_FOUND;
+        let stack_error = StackError::from(status_code);
+        assert!(stack_error.to_string().contains("404 Not Found"));
     }
 }

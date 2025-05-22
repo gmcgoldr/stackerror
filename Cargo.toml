@@ -14,5 +14,18 @@ doctest = false
 [dependencies]
 stackerror-impl = { version = "=0.5.1", path = "impl" }
 
+[features]
+default = ["std"]
+std = ["alloc"]
+alloc = []
+
 [workspace]
 members = ["impl"]
+
+[[test]]
+name = "no_std_core_tests"
+path = "tests/no_std_core_tests.rs"
+
+[[test]]
+name = "no_std_alloc_tests"
+path = "tests/no_std_alloc_tests.rs"

@@ -20,7 +20,7 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
         #input
 
         impl #name {
-            pub fn new(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+            pub fn new(error: impl core::fmt::Display + Send + Sync + 'static) -> Self {
                 Self(#first_field_type::new(error))
             }
         }
@@ -42,23 +42,24 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
                 Self(self.0.with_err_uri(uri))
             }
 
-            fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+            fn stack_err(self, error: impl core::fmt::Display + Send + Sync + 'static) -> Self {
                 Self(self.0.stack_err(error))
             }
         }
 
-        impl std::fmt::Display for #name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        impl core::fmt::Display for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 self.0.fmt(f)
             }
         }
 
-        impl std::fmt::Debug for #name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        impl core::fmt::Debug for #name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 self.0.fmt(f)
             }
         }
 
+        #[cfg(feature = "std")]
         impl std::error::Error for #name {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 self.0.source()

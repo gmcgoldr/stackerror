@@ -1,6 +1,11 @@
 //! Provides the [`StackError`] struct which implements the [`ErrorStacks`]
 //! trait.
 
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+extern crate alloc;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::{boxed::Box, string::String};
+
 use crate::codes::ErrorCode;
 
 /// Trait for stacking errors: errors that stack and provide an optional error
@@ -18,7 +23,7 @@ where
     /// Set the error URI.
     fn with_err_uri(self, uri: Option<String>) -> Self;
     /// Stack a new error on the current one.
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
+    fn stack_err(self, error: impl core::fmt::Display + Send + Sync + 'static) -> Self;
 }
 
 /// Implementation for [`Result`] allows adding error codes on results.
@@ -43,14 +48,14 @@ where
         self.map_err(|e| e.with_err_uri(uri))
     }
 
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+    fn stack_err(self, error: impl core::fmt::Display + Send + Sync + 'static) -> Self {
         self.map_err(|e| e.stack_err(error))
     }
 }
 
 /// A simple error type that implements the [`ErrorStacks`] trait.
 pub struct StackError {
-    error: Box<dyn std::fmt::Display + Send + Sync + 'static>,
+    error: Box<dyn core::fmt::Display + Send + Sync + 'static>,
     source: Option<Box<StackError>>,
     code: Option<ErrorCode>,
     uri: Option<String>,
@@ -59,7 +64,7 @@ pub struct StackError {
 
 impl StackError {
     /// Creates a new StackError from any type that implements Display + Send + Sync.
-    pub fn new(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+    pub fn new(error: impl core::fmt::Display + Send + Sync + 'static) -> Self {
         Self {
             error: Box::new(error),
             source: None,
@@ -87,7 +92,7 @@ impl ErrorStacks<ErrorCode> for StackError {
         Self { uri, ..self }
     }
 
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+    fn stack_err(self, error: impl core::fmt::Display + Send + Sync + 'static) -> Self {
         let code = self.code;
         let uri = self.uri.clone();
         let level = self.level + 1;
@@ -101,8 +106,8 @@ impl ErrorStacks<ErrorCode> for StackError {
     }
 }
 
-impl std::fmt::Display for StackError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Display for StackError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match &self.source {
             Some(source) => write!(f, "{}\n{}", source, self.error),
             None => write!(f, "{}", self.error),
@@ -110,12 +115,13 @@ impl std::fmt::Display for StackError {
     }
 }
 
-impl std::fmt::Debug for StackError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Display::fmt(self, f)
+impl core::fmt::Debug for StackError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        core::fmt::Display::fmt(self, f)
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for StackError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.source {

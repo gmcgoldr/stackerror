@@ -1,4 +1,8 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![doc = include_str!("../README.md")]
+
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+extern crate alloc;
 
 pub mod codes;
 pub mod error;
@@ -8,6 +12,7 @@ pub mod prelude;
 pub use prelude::*;
 pub use stackerror_impl::derive_stack_error;
 
+#[cfg(feature = "std")]
 #[cfg(test)]
 mod tests {
     use super::*;

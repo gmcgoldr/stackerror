@@ -20,8 +20,12 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
         #input
 
         impl #name {
-            pub fn new(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-                Self(#first_field_type::new(error))
+            pub fn new() -> Self {
+                Self(#first_field_type::new())
+            }
+
+            pub fn from_msg(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(#first_field_type::from_msg(error))
             }
         }
 
@@ -30,32 +34,52 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
                 self.0.err_code()
             }
 
-            fn with_err_code(self, code: Option<ErrorCode>) -> Self {
+            fn with_err_code(self, code: ErrorCode) -> Self {
                 Self(self.0.with_err_code(code))
+            }
+
+            fn with_no_err_code(self) -> Self {
+                Self(self.0.with_no_err_code())
             }
 
             fn err_uri(&self) -> Option<&str> {
                 self.0.err_uri()
             }
 
-            fn with_err_uri(self, uri: Option<String>) -> Self {
+            fn with_err_uri(self, uri: String) -> Self {
                 Self(self.0.with_err_uri(uri))
             }
 
-            fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-                Self(self.0.stack_err(error))
+            fn with_no_err_uri(self) -> Self {
+                Self(self.0.with_no_err_uri())
+            }
+
+            fn with_err_msg(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+                Self(self.0.with_err_msg(error))
+            }
+
+            fn with_no_err_msg(self) -> Self {
+                Self(self.0.with_no_err_msg())
+            }
+
+            fn stack_err(self) -> Self {
+               Self(self.0.stack_err())
+            }
+
+            fn stack_err_msg(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+               Self(self.0.stack_err_msg(error))
             }
         }
 
         impl std::fmt::Display for #name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                self.0.fmt(f)
+                std::fmt::Display::fmt(&self.0, f)
             }
         }
 
         impl std::fmt::Debug for #name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                self.0.fmt(f)
+                std::fmt::Debug::fmt(&self.0, f)
             }
         }
 

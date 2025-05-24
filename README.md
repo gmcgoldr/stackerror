@@ -9,38 +9,38 @@ so that you focus on writing great libraries and applications. Stack Error has t
 
 ## Overview
 
-- Build informative error messages for debugging with minimal effort. The error message is co-located with the error source, which helps document your code.
+- Build informative error messages for debugging with minimal effort. 
+  The error message is co-located with the error source, which helps document your code.
 
   ```rust
   use stackerror::prelude::*;
 
   pub fn process_data(data: &str) -> StackResult<String> {
       let data: Vec<String> = serde_json::from_str(data)
-          .map_err(stack_map!(StackError, "data is not a list of strings"))?;
+          .map_err(StackError::from_msg)
+          .stack_err_msg(fmt_loc!("data is not a list of strings"))?;
       data.first()
           .cloned()
-          .ok_or_else(stack_else!(StackError, "data is empty"))
+          .ok_or_else(StackError::new)
+          .with_err_msg(fmt_loc!("data is empty"))
   }
   ```
 
   In this example,
-  [`stack_map!`] and [`stack_err!`] build a new instance of [`StackError`], 
-  adding file name and line number information to the message. 
-  In the case of [`stack_err!`], 
-  the error message stacks onto the existing error.
-  Note that macros are used to simplify common operations, 
-  and the same outcome can be achieved using closures instead of macros.
-
-  If the data isn't a list,
-  the resulting error message would look like:
+  when the data isn't a valid JSON vector, 
+  [`StackError::from_msg`] is used to create a new error using serde's error message, 
+  and the [`StackError::stack_err_msg`] method is used to stack a new error onto this with a custom message. 
+  The [`fmt_loc`] marco prepends the file name and line number to the message. 
+  The resulting error message is:
 
   ```
-  Error: expected value at line 1 column 1
-  src/process.rs:4 data is not a list of strings
+  Error: EOF while parsing a value at line 1 column 0
+  src/main.rs:6 data is not a list of strings
   ```
 
-  The serde error is printed first,
-  followed by the StackError message with file name and line number. 
+  If the data is an empty JSON vector, 
+  then [`StackError::new`] is used to create an empty error, 
+  and [`StackError::with_err_msg`] is used to set the error's message.
 
 - Handle errors at runtime by inspecting an optional error code.
 
@@ -57,18 +57,26 @@ so that you focus on writing great libraries and applications. Stack Error has t
   and a handful of runtime codes to cover non-HTTP and non-IO cases.
   You can derive your own error codes as described later in the examples.
 
-- Define your own error type, allowing you to create custom methods such as [`std::convert::From`] implementations.
+- Easily define your own error type. This allows you to customize error codes,
+  derive `From` implementations, 
+  and provide a single opaque error type to downstream code.
 
-- Provides error types that implement [`std::error::Error`]. Errors are compatible with the broader Rust ecosystem.
+- Provides error types that implement [`std::error::Error`]. 
+  Errors are compatible with the broader Rust ecosystem.
 
 
 ## Rationale
 
-The Rust error handling ecosystem is largely built on two libraries: [`anyhow`](https://docs.rs/anyhow/latest/anyhow/) and [`thiserror`](https://docs.rs/thiserror/latest/thiserror/). Stack Error aims to explore the space between these two libraries: providing ergonomic error handling and an error type that is suitable for library development.
+The Rust error handling ecosystem is largely built on two libraries: 
+[`anyhow`](https://docs.rs/anyhow/latest/anyhow/) and [`thiserror`](https://docs.rs/thiserror/latest/thiserror/). 
+Stack Error aims to explore the space between these two libraries: 
+providing ergonomic error handling and an error type that is suitable for library development.
 
 ### Anyhow comparison
 
-Using [`anyhow`](https://docs.rs/anyhow/latest/anyhow/) makes development quick as error handling is nearly always just a matter of adding the `?` operator. But this can slow down the debugging process. Consider this example:
+Using [`anyhow`](https://docs.rs/anyhow/latest/anyhow/) makes development quick as error handling is nearly always just a matter of adding the `?` operator. 
+But this can slow down the debugging process. 
+Consider this example:
 
 ```rust
 use serde::Deserialize;
@@ -110,15 +118,17 @@ The [`thiserror`](https://docs.rs/thiserror/latest/thiserror/) library provides 
 
 ## Library structure
 
-The core of the library is the [`StackError`] struct and the [`ErrorStacks`] trait. 
-The [`ErrorCode`] enum can be used to add error codes to any [`ErrorStacks`]. 
-And the [`stack_msg!`], [`stack_err!`], [`stack_map!`] and [`stack_else!`] 
-macros are provided to simplify common operations on [`Result`]s, 
-and to add file name and line number information to error messages.
+The core of the library is the [`StackError`] struct and the [`ErrorStacks`]
+trait. The [`ErrorCode`] enum can be used to add error codes to any 
+[`ErrorStacks`].
+
+The [`ErrorStacks`] methods are implemented on [`StackError`]  and 
+`Result<_, StackError>`. So you can act on the `StackError` inside a `Result`. 
+The methods have no impact on the result if it is an `Ok` variant.
 
 Typically, you will access these using the [`prelude`] module which also defines [`StackResult`].
 
-## Examples
+## Custom error type
 
 Create your error type by using the [`derive_stack_error`] macro:
 
@@ -128,28 +138,42 @@ Create your error type by using the [`derive_stack_error`] macro:
 pub use stackerror::prelude::*;
 
 #[derive_stack_error]
-struct Error(StackError);
+struct LibError(StackError);
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type LibResult<T> = std::result::Result<T, LibError>;
 ```
 
-You can build a new error from anything that is [`std::fmt::Display`]:
+Then you can replace `use stackerror::prelude::*` with `use crate::errors::*`
+in your code in your code, and use `LibError` and `LibResult`.
+
+This has several benefits:
+
+- Your code exposes a single opaque error type. Downstream error-handling code 
+  doesn't need to know about `StackError`, and can write `From` implementations
+  that handle any error returned by your code.
+- Debug messages include only errors from your codebase since you can stack 
+  only instances of `LibError`.
+- You can customize the error codes.
+
+## Examples
+
+You can build a new error with an error message that is [`std::fmt::Display`]:
 
 ```rust
 use stackerror::prelude::*;
 
 fn process_data() -> StackResult<()> {
-    Err(StackError::new("failed to process data"))
+    Err(StackError::from_msg("failed to process data"))
 }
 ```
 
-You can include file and line information in error messages using the [`stack_msg!`] macro:
+You can include file and line information in error messages using the [`fmt_loc!`] macro:
 
 ```rust
 use stackerror::prelude::*;
 
 fn process_data() -> StackResult<()> {
-    Err(StackError::new(stack_msg!("failed to process data")))
+    Err(StackError::from_msg(fmt_loc!("failed to process data")))
 }
 ```
 
@@ -160,7 +184,7 @@ use stackerror::prelude::*;
 
 fn process_data() -> StackResult<()> {
     Err(
-        StackError::new(stack_msg!("failed to process data"))
+        StackError::from_msg(fmt_loc!("failed to process data"))
         .with_err_code(ErrorCode::HttpImATeapot)
         .with_err_uri("https://example.invalid/teapot")
     )
@@ -173,53 +197,20 @@ You can chain errors together to provide context in the error message:
 use stackerror::prelude::*;
 
 pub read_data() -> StackResult<String> {
-    Err(StackError::new(stack_msg!("failed to read data")))
+    Err(StackError::from_msg(fmt_loc!("failed to read data")))
 }
 
 pub process_data() -> StackResult<()> {
     // NOTE: stack_err can be called directly on the Result
-    read_data().stack_err(stack_msg!("failed to process data"))
+    read_data().stack_err_msg(fmt_loc!("failed to process data"))
 }
 ```
 
 This would result in an error message like:
 
 ```
-src/main:8 failed to process data
+src/main:9 failed to process data
 src/main:4 failed to read data
-```
-
-The [`stack_err!`] macro offers a shorthand for the common pattern `Err(Error::new(stack_msg!(...)))`:
-
-```rust
-use stackerror::prelude::*;
-
-pub read_data() -> StackResult<String> {
-    stack_err!("failed_to_read_data")
-}
-```
-
-You can wrap an existing error:
-
-```rust
-use stackerror::prelude::*;
-
-pub fn process_data(data: &str) -> Vec<String> {
-    serde_json::from_str(data)
-        .map_err(StackError::new)
-        .stack_err(stack_msg!("data is not a list of strings"))
-}
-```
-
-The [`stack_map!`] (and similarly [`stack_else!`]) macro offers a shorthand for this common pattern. They accept the error type to wrap the original error with, and the error message to stack onto it. The error type must be [`ErrorStacks`].
-
-```rust
-use stackerror::prelude::*;
-
-pub fn process_data(data: &str) -> Vec<String> {
-    serde_json::from_str(data)
-        .map_err(stack_map!(StackError, "data is not a list of strings"))
-}
 ```
 
 You can use your own error codes by defining an [`ErrorCode`] type in the scope where [`derive_stack_error`] is used:

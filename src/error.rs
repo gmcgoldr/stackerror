@@ -12,13 +12,23 @@ where
     /// Get the error code if one is set.
     fn err_code(&self) -> Option<&C>;
     /// Set the error code.
-    fn with_err_code(self, code: Option<C>) -> Self;
+    fn with_err_code(self, code: C) -> Self;
+    /// Remove the error code.
+    fn with_no_err_code(self) -> Self;
     /// Get the error URI if one is set.
     fn err_uri(&self) -> Option<&str>;
     /// Set the error URI.
-    fn with_err_uri(self, uri: Option<String>) -> Self;
+    fn with_err_uri(self, uri: String) -> Self;
+    /// Remove the error URI.
+    fn with_no_err_uri(self) -> Self;
+    /// Set the error message.
+    fn with_err_msg(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
+    /// Remove the error message.
+    fn with_no_err_msg(self) -> Self;
     /// Stack a new error on the current one.
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
+    fn stack_err(self) -> Self;
+    /// Stack a new error on the current one with a given message.
+    fn stack_err_msg(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self;
 }
 
 /// Implementation for [`Result`] allows adding error codes on results.
@@ -31,41 +41,64 @@ where
         self.as_ref().err().and_then(|e| e.err_code())
     }
 
-    fn with_err_code(self, code: Option<C>) -> Self {
+    fn with_err_code(self, code: C) -> Self {
         self.map_err(|e| e.with_err_code(code))
+    }
+
+    fn with_no_err_code(self) -> Self {
+        self.map_err(|e| e.with_no_err_code())
     }
 
     fn err_uri(&self) -> Option<&str> {
         self.as_ref().err().and_then(|e| e.err_uri())
     }
 
-    fn with_err_uri(self, uri: Option<String>) -> Self {
+    fn with_err_uri(self, uri: String) -> Self {
         self.map_err(|e| e.with_err_uri(uri))
     }
 
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
-        self.map_err(|e| e.stack_err(error))
+    fn with_no_err_uri(self) -> Self {
+        self.map_err(|e| e.with_no_err_uri())
+    }
+
+    fn with_err_msg(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        self.map_err(|e| e.with_err_msg(error))
+    }
+
+    fn with_no_err_msg(self) -> Self {
+        self.map_err(|e| e.with_no_err_msg())
+    }
+
+    fn stack_err(self) -> Self {
+        self.map_err(|e| e.stack_err())
+    }
+
+    fn stack_err_msg(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        self.map_err(|e| e.stack_err_msg(error))
     }
 }
 
 /// A simple error type that implements the [`ErrorStacks`] trait.
+#[derive(Default)]
 pub struct StackError {
-    error: Box<dyn std::fmt::Display + Send + Sync + 'static>,
+    message: Option<Box<dyn std::fmt::Display + Send + Sync + 'static>>,
     source: Option<Box<StackError>>,
     code: Option<ErrorCode>,
     uri: Option<String>,
-    level: usize,
 }
 
 impl StackError {
-    /// Creates a new StackError from any type that implements Display + Send + Sync.
-    pub fn new(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+    /// Creates a new empty StackError.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates a new StackError from any error message that implements
+    /// Display + Send + Sync.
+    pub fn from_msg(error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
         Self {
-            error: Box::new(error),
-            source: None,
-            code: None,
-            uri: None,
-            level: 0,
+            message: Some(Box::new(error)),
+            ..Default::default()
         }
     }
 }
@@ -75,44 +108,94 @@ impl ErrorStacks<ErrorCode> for StackError {
         self.code.as_ref()
     }
 
-    fn with_err_code(self, code: Option<ErrorCode>) -> Self {
-        Self { code, ..self }
+    fn with_err_code(self, code: ErrorCode) -> Self {
+        Self {
+            code: Some(code),
+            ..self
+        }
+    }
+
+    fn with_no_err_code(self) -> Self {
+        Self { code: None, ..self }
     }
 
     fn err_uri(&self) -> Option<&str> {
         self.uri.as_deref()
     }
 
-    fn with_err_uri(self, uri: Option<String>) -> Self {
-        Self { uri, ..self }
+    fn with_err_uri(self, uri: String) -> Self {
+        Self {
+            uri: Some(uri),
+            ..self
+        }
     }
 
-    fn stack_err(self, error: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+    fn with_no_err_uri(self) -> Self {
+        Self { uri: None, ..self }
+    }
+
+    fn with_err_msg(self, message: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        Self {
+            message: Some(Box::new(message)),
+            ..self
+        }
+    }
+
+    fn with_no_err_msg(self) -> Self {
+        Self {
+            message: None,
+            ..self
+        }
+    }
+
+    fn stack_err(self) -> Self {
         let code = self.code;
         let uri = self.uri.clone();
-        let level = self.level + 1;
         Self {
-            error: Box::new(error),
+            message: None,
             source: Some(Box::new(self)),
             code,
             uri,
-            level,
+        }
+    }
+
+    fn stack_err_msg(self, message: impl std::fmt::Display + Send + Sync + 'static) -> Self {
+        let code = self.code;
+        let uri = self.uri.clone();
+        Self {
+            message: Some(Box::new(message)),
+            source: Some(Box::new(self)),
+            code,
+            uri,
         }
     }
 }
 
 impl std::fmt::Display for StackError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match &self.source {
-            Some(source) => write!(f, "{}\n{}", source, self.error),
-            None => write!(f, "{}", self.error),
+        match &self.message {
+            Some(error) => {
+                write!(f, "{}", error)
+            }
+            None => Ok(()),
         }
     }
 }
 
 impl std::fmt::Debug for StackError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Display::fmt(self, f)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (idx, err) in std::iter::successors(Some(self), |e| e.source.as_deref())
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .enumerate()
+        {
+            if idx > 0 {
+                writeln!(f)?;
+            }
+            write!(f, "{err}")?;
+        }
+        Ok(())
     }
 }
 

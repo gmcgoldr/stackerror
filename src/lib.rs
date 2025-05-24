@@ -13,32 +13,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_error_builds() {
-        let error = StackError::new("Test error");
-        assert_eq!(error.to_string(), "Test error");
+    fn test_error_builds_empty() {
+        let error = StackError::new();
+        assert_eq!(format!("{:?}", error), "");
+    }
+
+    #[test]
+    fn test_error_builds_from_msg() {
+        let error = StackError::from_msg("Test error");
+        assert_eq!(format!("{:?}", error), "Test error");
+    }
+
+    #[test]
+    fn test_error_has_err() {
+        let error = StackError::new().with_err_msg("Test error");
+        assert_eq!(format!("{:?}", error), "Test error");
     }
 
     #[test]
     fn test_error_has_code() {
-        let error =
-            StackError::new("Test error").with_err_code(Some(ErrorCode::RuntimeInvalidValue));
+        let error = StackError::new().with_err_code(ErrorCode::RuntimeInvalidValue);
         assert_eq!(error.err_code(), Some(&ErrorCode::RuntimeInvalidValue));
     }
 
     #[test]
     fn test_error_has_uri() {
-        let error = StackError::new("Test error")
-            .with_err_uri(Some("https://example.com/error".to_string()));
+        let error = StackError::new().with_err_uri("https://example.com/error".to_string());
         assert_eq!(error.err_uri(), Some("https://example.com/error"));
     }
 
     #[test]
     fn test_error_stacks() {
-        let base_error = StackError::new("Base error")
-            .with_err_code(Some(ErrorCode::RuntimeInvalidValue))
-            .with_err_uri(Some("https://example.com/base".to_string()));
-        let stacked_error = base_error.stack_err("Stacked error");
-        assert_eq!(stacked_error.to_string(), "Base error\nStacked error");
+        let base_error = StackError::from_msg("Base error")
+            .with_err_code(ErrorCode::RuntimeInvalidValue)
+            .with_err_uri("https://example.com/base".to_string());
+        let stacked_error = base_error.stack_err_msg("Stacked error");
+        assert_eq!(format!("{:?}", stacked_error), "Base error\nStacked error");
         assert_eq!(
             stacked_error.err_code(),
             Some(&ErrorCode::RuntimeInvalidValue)
@@ -46,85 +56,51 @@ mod tests {
         assert_eq!(stacked_error.err_uri(), Some("https://example.com/base"));
     }
 
-    #[test]
-    fn test_stack_map_macro_maps() {
-        let error: Result<(), StackError> =
-            Err(StackError::new("Base error")).map_err(stack_map!(StackError, "Stacked error"));
-        let error = error.unwrap_err();
-        assert!(error.to_string().contains("Base error"));
-        assert!(error.to_string().contains("Stacked error"));
-    }
-
-    #[test]
-    fn test_stack_else_macro_builds() {
-        let error: Result<(), StackError> =
-            Option::None.ok_or_else(stack_else!(StackError, "Base error"));
-        let error = error.unwrap_err();
-        assert!(error.to_string().contains("Base error"));
-    }
-
-    #[test]
-    fn test_stack_err_macro_builds() {
-        let error: Result<(), StackError> = stack_err!(StackError, "Test error");
-        let error = error.unwrap_err();
-        assert!(error.to_string().contains("Test error"));
-    }
-
     // Add this custom error struct
     #[derive_stack_error]
     struct LibError(StackError);
 
     #[test]
-    fn test_derived_builds() {
-        let custom_error = LibError::new("Custom error");
-        assert_eq!(custom_error.to_string(), "Custom error");
+    fn test_custom_builds_empty() {
+        let error = LibError::new();
+        assert_eq!(format!("{:?}", error), "");
     }
 
     #[test]
-    fn test_derived_has_code() {
-        let coded_error =
-            LibError::new("Coded error").with_err_code(Some(ErrorCode::RuntimeInvalidValue));
-        assert_eq!(
-            coded_error.err_code(),
-            Some(&ErrorCode::RuntimeInvalidValue)
-        );
+    fn test_custom_builds_from_msg() {
+        let error = LibError::from_msg("Test error");
+        assert_eq!(format!("{:?}", error), "Test error");
     }
 
     #[test]
-    fn test_derived_has_uri() {
-        let uri_error =
-            LibError::new("URI error").with_err_uri(Some("https://example.com/custom".to_string()));
-        assert_eq!(uri_error.err_uri(), Some("https://example.com/custom"));
+    fn test_custom_has_err() {
+        let error = LibError::new().with_err_msg("Test error");
+        assert_eq!(format!("{:?}", error), "Test error");
     }
 
     #[test]
-    fn test_derived_error_stacks() {
-        let base_error = LibError::new("Base error")
-            .with_err_code(Some(ErrorCode::RuntimeInvalidValue))
-            .with_err_uri(Some("https://example.com/base_custom".to_string()));
-        let stacked_error = base_error.stack_err("Stacked error");
-        assert_eq!(stacked_error.to_string(), "Base error\nStacked error");
+    fn test_custom_has_code() {
+        let error = LibError::new().with_err_code(ErrorCode::RuntimeInvalidValue);
+        assert_eq!(error.err_code(), Some(&ErrorCode::RuntimeInvalidValue));
+    }
+
+    #[test]
+    fn test_custom_has_uri() {
+        let error = LibError::new().with_err_uri("https://example.com/error".to_string());
+        assert_eq!(error.err_uri(), Some("https://example.com/error"));
+    }
+
+    #[test]
+    fn test_custom_stacks() {
+        let base_error = LibError::from_msg("Base error")
+            .with_err_code(ErrorCode::RuntimeInvalidValue)
+            .with_err_uri("https://example.com/base".to_string());
+        let stacked_error = base_error.stack_err_msg("Stacked error");
+        assert_eq!(format!("{:?}", stacked_error), "Base error\nStacked error");
         assert_eq!(
             stacked_error.err_code(),
             Some(&ErrorCode::RuntimeInvalidValue)
         );
-        assert_eq!(
-            stacked_error.err_uri(),
-            Some("https://example.com/base_custom")
-        );
-    }
-
-    #[test]
-    fn test_derived_creation_map() {
-        let error: Result<(), LibError> =
-            Err(LibError::new("Base error")).map_err(stack_map!(LibError, "Stacked error"));
-        assert!(error.unwrap_err().to_string().ends_with("Stacked error"));
-    }
-
-    #[test]
-    fn test_derived_creation_fn() {
-        let error: Result<(), LibError> =
-            Option::None.ok_or_else(stack_else!(LibError, "Base error"));
-        assert!(error.unwrap_err().to_string().ends_with("Base error"));
+        assert_eq!(stacked_error.err_uri(), Some("https://example.com/base"));
     }
 }

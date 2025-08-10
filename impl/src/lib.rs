@@ -88,6 +88,15 @@ pub fn derive_stack_error(_attr: TokenStream, item: TokenStream) -> TokenStream 
                 self.0.source()
             }
         }
+
+        impl<E> From<E> for #name
+        where
+            StackError: From<E>,
+        {
+            fn from(err: E) -> Self {
+                Self(StackError::from(err))
+            }
+        }
     };
 
     TokenStream::from(expanded)
